@@ -23,7 +23,7 @@ local plr = players.LocalPlayer
 -- point this at your raw github. everything else hangs off it
 --------------------------------------------------------------
 local BASE = getgenv and getgenv().HUB_BASE
-	or "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/"
+	or "https://raw.githubusercontent.com/antony25333234465/loadedhub/refs/heads/main/"
 
 function getgitpath(what)
 	if what == "games" then return BASE .. "games/" end
@@ -31,7 +31,7 @@ function getgitpath(what)
 	return BASE
 end
 
-local FOLDER   = "BrainrotHub"
+local FOLDER   = "LoadedHub"
 local CFG_FILE = FOLDER .. "/Config.json"
 local VERSION  = "1.0"
 local DISCORD  = "discord.gg/yourserver"
