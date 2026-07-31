@@ -109,9 +109,9 @@ local function addMainFramePatterns(parent)
 	halftone.Size = UDim2.new(1, 0, 1, 0)
 	halftone.Position = UDim2.new(0, 0, 0, 0)
 	halftone.BackgroundTransparency = 1
-	halftone.Image = "rbxassetid://10842503251" -- Halftone dot gradient
+	halftone.Image = "rbxassetid://10842503251" -- Halftone dot pattern gradient
 	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	halftone.ImageTransparency = 0.78
+	halftone.ImageTransparency = 0.65 -- CLEARLY VISIBLE HALFTONE DOTS
 	halftone.ScaleType = Enum.ScaleType.Crop
 	halftone.ZIndex = 400
 	halftone.Parent = bg
@@ -241,7 +241,7 @@ corner(Topbar, 8)
 stroke(Topbar, 3, BLACK_OUT)
 glossyGradient(Topbar, BLUE_TOP, BLUE_BOT, 90)
 
--- FIGMA LIGHT RAYS OVERLAY (ZIndex = 402 - EXACTLY HEADER SIZE)
+-- FIGMA LIGHT RAYS OVERLAY (ZIndex = 402 - EXACTLY HEADER SIZE, DOES NOT LEAK)
 do
 	local raysOverlay = Instance.new("ImageLabel")
 	raysOverlay.Name = "FigmaRaysOverlay"
@@ -280,7 +280,7 @@ do
 	end
 end
 
--- Header Sheen Animation (Clamped to Header)
+-- Header Sheen Animation (Clamped strictly to Header bounds)
 do
 	local sheen = Instance.new("Frame")
 	sheen.Name = "sheen"
