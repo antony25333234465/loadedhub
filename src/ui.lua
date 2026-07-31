@@ -1,6 +1,6 @@
 --// ui.lua
---// Stud UI Pack - Figma Rays Header & Halftone Dot Gradient Overlay
---// Fully compatible with main.lua
+--// Stud UI Pack - Ultimate Figma Rays Header & Halftone Dot Gradient Overlay
+--// Fixed ScrollingFrame layout calculation so ALL TABS show content perfectly!
 
 local tweenservice = game:GetService("TweenService")
 local runservice   = game:GetService("RunService")
@@ -9,7 +9,7 @@ local runservice   = game:GetService("RunService")
 -- COLOR PALETTE & RICH VIBRANT THEMES
 --------------------------------------------------------------
 local MAIN_BG    = Color3.fromRGB(14, 14, 20)      -- Main Frame Deep Dark
-local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Solid Dark Glass (NO STUDS INSIDE)
+local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Solid Dark Glass (ZERO STUDS INSIDE)
 local BLACK_OUT  = Color3.fromRGB(0, 0, 0)         -- Thick Black UI Strokes
 local WHITE      = Color3.fromRGB(255, 255, 255)
 local LIGHT_GRAY = Color3.fromRGB(215, 220, 235)
@@ -90,7 +90,7 @@ end
 local rng = Random.new(os.time() % 99991)
 
 --------------------------------------------------------------
--- MAIN FRAME STUDDED & HALFTONE PATTERN (ONLY ON OUTER FRAME)
+-- MAIN FRAME STUDDED & HALFTONE PATTERN (ONLY ON OUTER MAIN FRAME)
 --------------------------------------------------------------
 local function addMainFramePatterns(parent)
 	local bg = Instance.new("Frame")
@@ -103,7 +103,7 @@ local function addMainFramePatterns(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
-	-- Outer stud grid texture (ONLY on outer frame edges)
+	-- Outer stud grid texture (ONLY on outer main frame background edges)
 	local studs = Instance.new("ImageLabel")
 	studs.Name = "OuterStudTexture"
 	studs.Size = UDim2.new(1, 0, 1, 0)
@@ -124,7 +124,7 @@ local function addMainFramePatterns(parent)
 	halftone.BackgroundTransparency = 1
 	halftone.Image = "rbxassetid://10842503251" -- Halftone dot pattern gradient
 	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	halftone.ImageTransparency = 0.82
+	halftone.ImageTransparency = 0.80
 	halftone.ScaleType = Enum.ScaleType.Crop
 	halftone.ZIndex = 400
 	halftone.Parent = bg
@@ -250,7 +250,7 @@ do
 	raysOverlay.BackgroundTransparency = 1
 	raysOverlay.Image = "rbxassetid://10842502695" -- Figma style diagonal rays
 	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	raysOverlay.ImageTransparency = 0.22 -- HIGH VISIBILITY RAYS
+	raysOverlay.ImageTransparency = 0.20 -- HIGH VISIBILITY RAYS
 	raysOverlay.ScaleType = Enum.ScaleType.Crop
 	raysOverlay.ZIndex = 402 -- Strictly behind badge, title, buttons
 	raysOverlay.Parent = Topbar
@@ -416,7 +416,7 @@ closebtn.MouseLeave:Connect(function()
 end)
 
 --------------------------------------------------------------
--- TAB LIST (NO STUD TEXTURES INSIDE TABS)
+-- TAB LIST (100% OPAQUE - NO STUDS INSIDE TABS)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
@@ -630,7 +630,7 @@ newTab("Settings",  "Settings",   4)
 newTab("Credits",   "Credits",    5)
 
 --------------------------------------------------------------
--- SECTION CONTAINERS (OPAQUE SOLID DARK GLASS - NO STUDS INSIDE)
+-- SECTION CONTAINERS (100% OPAQUE DARK GLASS - NO STUDS INSIDE)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
@@ -675,10 +675,24 @@ local function newSection(name)
 	pad.PaddingBottom = UDim.new(0, 8)
 	pad.Parent = f
 
+	-- AUTO CANVAS RESIZE FIX: Guarantees ALL elements show up in ALL tabs!
+	local function updateCanvas()
+		task.defer(function()
+			if lay and lay.AbsoluteContentSize then
+				f.CanvasSize = UDim2.new(0, 0, 0, lay.AbsoluteContentSize.Y + 28)
+			end
+		end)
+	end
+
+	lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+	f.ChildAdded:Connect(updateCanvas)
+	f.ChildRemoved:Connect(updateCanvas)
+	f:GetPropertyChangedSignal("Visible"):Connect(updateCanvas)
+
 	-- AUTO-STRIP STUDS FROM ANY DYNAMICALLY ADDED ELEMENTS INSIDE TABS
 	f.DescendantAdded:Connect(function(desc)
 		if desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
-			if string.find(string.lower(desc.Name), "stud") or string.find(tostring(desc.Image), "9826359020") then
+			if string.find(string.lower(desc.Name), "stud") or string.find(tostring(desc.Image), "9826359020") or string.find(tostring(desc.Image), "117006067003358") then
 				desc:Destroy()
 			end
 		end
