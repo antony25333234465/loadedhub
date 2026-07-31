@@ -31,7 +31,7 @@ function getgitpath(what)
 	return BASE
 end
 
-local FOLDER   = "LoadedHub"
+local FOLDER   = "BrainrotHub"
 local CFG_FILE = FOLDER .. "/Config.json"
 local VERSION  = "1.0"
 local DISCORD  = "discord.gg/yourserver"
@@ -91,8 +91,22 @@ end
 -- tries the repo first, falls back to the local copy on disk.
 -- that way it still works if github is down or you are offline
 --------------------------------------------------------------
+-- raw.githubusercontent caches for ~5 min. sticking a junk param on the
+-- end makes it a different url so it always gives me the fresh one
+local function bust(url)
+	return url .. "?nocache=" .. tostring(math.random(100000, 999999)) .. tostring(os.time())
+end
+
 local function fetch(url, cachePath)
-	local ok, body = pcall(function() return game:HttpGet(url) end)
+	local ok, body = pcall(function() return game:HttpGet(bust(url)) end)
+
+	if not ok then
+		warn("[hub] http failed on " .. url .. " -> " .. tostring(body))
+	elseif body == "404: Not Found" then
+		warn("[hub] 404, that file is not on the repo: " .. url)
+	elseif not body or #body == 0 then
+		warn("[hub] empty answer from " .. url)
+	end
 
 	if ok and body and #body > 0 and body ~= "404: Not Found" then
 		if hasFS and cachePath then
@@ -102,10 +116,31 @@ local function fetch(url, cachePath)
 	end
 
 	if hasFS and cachePath and isfile(cachePath) then
+		warn("[hub] falling back to the copy on disk: " .. cachePath)
 		local ok2, cached = pcall(function() return readfile(cachePath) end)
 		if ok2 then return cached end
 	end
 	return nil
+end
+
+-- json that shouts when it breaks. the silent pcall was hiding a
+-- trailing comma for ages and the list just showed up empty
+local function decode(raw, what, fallback)
+	if not raw then
+		warn("[hub] no " .. what .. ", couldnt download it")
+		return fallback
+	end
+	local ok, dec = pcall(function() return httpservice:JSONDecode(raw) end)
+	if not ok then
+		warn("[hub] " .. what .. " is broken json -> " .. tostring(dec))
+		warn("[hub] check for a comma after the last } , thats the usual one")
+		return fallback
+	end
+	if type(dec) ~= "table" then
+		warn("[hub] " .. what .. " didnt decode into a table")
+		return fallback
+	end
+	return dec
 end
 
 --------------------------------------------------------------
@@ -290,10 +325,8 @@ local elements = loadstring(elementsSrc)()
 local gameListRaw = fetch(getgitpath("src") .. "gameslist.json", FOLDER .. "/gameslist.json")
 local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/credits.json")
 
-local gameList = {}
-local creditsList = {}
-pcall(function() gameList    = httpservice:JSONDecode(gameListRaw or "[]") end)
-pcall(function() creditsList = httpservice:JSONDecode(creditsRaw  or "{}") end)
+local gameList    = decode(gameListRaw, "gameslist.json", {})
+local creditsList = decode(creditsRaw,   "credits.json",   {})
 
 -- tells me if the game im in shows up on the list
 local function gameFromList(pid)
@@ -386,6 +419,19 @@ end
 -- GAMES LIST
 --------------------------------------------------------------
 elements:Searchbar(Sections.GamesList.Container, gameList)
+
+-- if the list came back empty its always the json, so say it out loud
+-- instead of leaving the tab blank like it did before
+if #gameList == 0 then
+	elements:Header(Sections.GamesList.Container, "empty list")
+	elements:Stat(Sections.GamesList.Container, "gameslist.json", "not loaded", "err")
+	elements:Label(Sections.GamesList.Container,
+		"either its not up on the repo yet or the json is malformed. "
+		.. "the classic one is a comma after the last }")
+	elements:Button("retry", Sections.GamesList.Container, function()
+		elements:Notify("reload", "run the script again", "warn")
+	end)
+end
 
 for _, g in ipairs(gameList) do
 	elements:addGame(Sections.GamesList.Container, g["game"], g["status"], function()
