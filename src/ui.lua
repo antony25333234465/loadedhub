@@ -1,6 +1,6 @@
 --// ui.lua
---// Stud UI Pack - Ultimate Figma Rays Header & Halftone Dot Gradient Overlay
---// Fixed ScrollingFrame layout calculation so ALL TABS show content perfectly!
+--// Stud UI Pack - Figma Rays Header & Halftone Dot Gradient Overlay
+--// Fully compatible with main.lua & elements.lua
 
 local tweenservice = game:GetService("TweenService")
 local runservice   = game:GetService("RunService")
@@ -8,28 +8,28 @@ local runservice   = game:GetService("RunService")
 --------------------------------------------------------------
 -- COLOR PALETTE & RICH VIBRANT THEMES
 --------------------------------------------------------------
-local MAIN_BG    = Color3.fromRGB(14, 14, 20)      -- Main Frame Deep Dark
-local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Solid Dark Glass (ZERO STUDS INSIDE)
+local MAIN_BG    = Color3.fromRGB(12, 12, 18)      -- Main Frame Deep Dark
+local PANEL_BG   = Color3.fromRGB(20, 20, 28)      -- Section Containers Solid Dark Glass (ZERO STUDS INSIDE)
 local BLACK_OUT  = Color3.fromRGB(0, 0, 0)         -- Thick Black UI Strokes
 local WHITE      = Color3.fromRGB(255, 255, 255)
-local LIGHT_GRAY = Color3.fromRGB(215, 220, 235)
-local MUTED_GRAY = Color3.fromRGB(145, 150, 170)
+local LIGHT_GRAY = Color3.fromRGB(210, 215, 230)
+local MUTED_GRAY = Color3.fromRGB(140, 145, 165)
 
 -- Header Gradient Colors (Electric Blue)
-local BLUE_TOP   = Color3.fromRGB(0, 185, 255)     -- Header Top Blue
-local BLUE_BOT   = Color3.fromRGB(0, 95, 215)      -- Header Bottom Blue
+local BLUE_TOP   = Color3.fromRGB(0, 180, 255)     -- Header Top Blue
+local BLUE_BOT   = Color3.fromRGB(0, 95, 210)      -- Header Bottom Blue
 
 -- Vibrant Custom Color Themes for Each Tab
 local TAB_THEMES = {
-	Home      = { Top = Color3.fromRGB(0, 200, 255),   Bot = Color3.fromRGB(0, 100, 220),   Accent = Color3.fromRGB(0, 240, 255),  Glow = Color3.fromRGB(0, 180, 255) },
-	Game      = { Top = Color3.fromRGB(0, 230, 115),   Bot = Color3.fromRGB(0, 135, 60),    Accent = Color3.fromRGB(60, 255, 150), Glow = Color3.fromRGB(0, 230, 120) },
-	Gameslist = { Top = Color3.fromRGB(255, 200, 15),   Bot = Color3.fromRGB(190, 120, 0),   Accent = Color3.fromRGB(255, 235, 80), Glow = Color3.fromRGB(255, 190, 0) },
-	Settings  = { Top = Color3.fromRGB(224, 64, 251),  Bot = Color3.fromRGB(125, 25, 170),  Accent = Color3.fromRGB(250, 130, 255),Glow = Color3.fromRGB(210, 50, 240) },
-	Credits   = { Top = Color3.fromRGB(255, 75, 85),   Bot = Color3.fromRGB(180, 20, 30),   Accent = Color3.fromRGB(255, 140, 150),Glow = Color3.fromRGB(255, 60, 70) },
+	Home      = { Top = Color3.fromRGB(0, 190, 255),   Bot = Color3.fromRGB(0, 95, 215),   Accent = Color3.fromRGB(0, 230, 255) },
+	Game      = { Top = Color3.fromRGB(0, 220, 110),   Bot = Color3.fromRGB(0, 130, 60),    Accent = Color3.fromRGB(50, 255, 140) },
+	Gameslist = { Top = Color3.fromRGB(255, 195, 15),   Bot = Color3.fromRGB(180, 120, 0),   Accent = Color3.fromRGB(255, 230, 70) },
+	Settings  = { Top = Color3.fromRGB(215, 50, 240),  Bot = Color3.fromRGB(120, 20, 150),  Accent = Color3.fromRGB(245, 120, 255) },
+	Credits   = { Top = Color3.fromRGB(255, 70, 80),   Bot = Color3.fromRGB(170, 20, 30),   Accent = Color3.fromRGB(255, 130, 140) },
 }
 
-local TAB_INACT_1 = Color3.fromRGB(50, 50, 65)    -- Inactive Tab Top
-local TAB_INACT_2 = Color3.fromRGB(30, 30, 40)    -- Inactive Tab Bottom
+local TAB_INACT_1 = Color3.fromRGB(48, 48, 62)    -- Inactive Tab Top
+local TAB_INACT_2 = Color3.fromRGB(28, 28, 38)    -- Inactive Tab Bottom
 local RED_TOP    = Color3.fromRGB(255, 55, 65)     -- Close Button Red Top
 local RED_BOT    = Color3.fromRGB(175, 15, 25)     -- Close Button Red Bottom
 
@@ -90,7 +90,7 @@ end
 local rng = Random.new(os.time() % 99991)
 
 --------------------------------------------------------------
--- MAIN FRAME STUDDED & HALFTONE PATTERN (ONLY ON OUTER MAIN FRAME)
+-- MAIN FRAME HALFTONE & OUTER PATTERN (ONLY ON OUTER MAIN FRAME BACKGROUND)
 --------------------------------------------------------------
 local function addMainFramePatterns(parent)
 	local bg = Instance.new("Frame")
@@ -103,31 +103,31 @@ local function addMainFramePatterns(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
+	-- Long White Circle Halftone Dot Gradient Texture Overlay (LongWhiteCircle_Halftone)
+	local halftone = Instance.new("ImageLabel")
+	halftone.Name = "HalftoneDotGradient"
+	halftone.Size = UDim2.new(1, 0, 1, 0)
+	halftone.Position = UDim2.new(0, 0, 0, 0)
+	halftone.BackgroundTransparency = 1
+	halftone.Image = "rbxassetid://10842503251" -- Halftone dot gradient
+	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	halftone.ImageTransparency = 0.78
+	halftone.ScaleType = Enum.ScaleType.Crop
+	halftone.ZIndex = 400
+	halftone.Parent = bg
+
 	-- Outer stud grid texture (ONLY on outer main frame background edges)
 	local studs = Instance.new("ImageLabel")
 	studs.Name = "OuterStudTexture"
 	studs.Size = UDim2.new(1, 0, 1, 0)
 	studs.BackgroundTransparency = 1
 	studs.Image = "rbxassetid://9826359020"
-	studs.ImageColor3 = Color3.fromRGB(45, 45, 60)
-	studs.ImageTransparency = 0.68
+	studs.ImageColor3 = Color3.fromRGB(40, 40, 55)
+	studs.ImageTransparency = 0.72
 	studs.ScaleType = Enum.ScaleType.Tile
 	studs.TileSize = UDim2.new(0, 24, 0, 24)
 	studs.ZIndex = 400
 	studs.Parent = bg
-
-	-- Long Halftone Dot Gradient Texture Overlay (LongWhiteCircle_Halftone)
-	local halftone = Instance.new("ImageLabel")
-	halftone.Name = "HalftoneDotGradient"
-	halftone.Size = UDim2.new(1, 0, 1, 0)
-	halftone.Position = UDim2.new(0, 0, 0, 0)
-	halftone.BackgroundTransparency = 1
-	halftone.Image = "rbxassetid://10842503251" -- Halftone dot pattern gradient
-	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	halftone.ImageTransparency = 0.80
-	halftone.ScaleType = Enum.ScaleType.Crop
-	halftone.ZIndex = 400
-	halftone.Parent = bg
 
 	-- Vignette overlay
 	local vig = Instance.new("Frame")
@@ -166,13 +166,13 @@ ui.DisplayOrder = 9999
 --------------------------------------------------------------
 local togglebtn = Instance.new("TextButton")
 togglebtn.Name = "togglebtn"
-togglebtn.Size = UDim2.new(0, 170, 0, 44)
-togglebtn.Position = UDim2.new(0.5, -85, 0.03, 0)
+togglebtn.Size = UDim2.new(0, 160, 0, 42)
+togglebtn.Position = UDim2.new(0.5, -80, 0.03, 0)
 togglebtn.BackgroundColor3 = BLUE_TOP
 togglebtn.AutoButtonColor = false
-togglebtn.Text = "LOADED HUB"
+togglebtn.Text = "loaded hub"
 togglebtn.TextColor3 = WHITE
-togglebtn.TextSize = 18
+togglebtn.TextSize = 17
 togglebtn.Font = F_STUD
 togglebtn.BorderSizePixel = 0
 togglebtn.ClipsDescendants = true
@@ -226,14 +226,14 @@ scMain.Parent = MainFrame
 tw(scMain, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 
 --------------------------------------------------------------
--- TOPBAR (HEADER WITH FIGMA RAYS Strictly Behind Content & Text)
+-- TOPBAR (HEADER WITH RAYS STRICTLY CLAMPED TO HEADER SIZE)
 --------------------------------------------------------------
 local Topbar = Instance.new("Frame")
 Topbar.Name = "TopBar"
-Topbar.Size = UDim2.new(1, 0, 0, 70)
+Topbar.Size = UDim2.new(1, 0, 0, 68)
 Topbar.BackgroundColor3 = BLUE_TOP
 Topbar.BorderSizePixel = 0
-Topbar.ClipsDescendants = true -- STOPS RAYS FROM LEAKING OUTSIDE HEADER
+Topbar.ClipsDescendants = true -- STRICTLY CLAMPS RAYS INSIDE HEADER
 Topbar.ZIndex = 401
 Topbar.Parent = MainFrame
 
@@ -241,31 +241,31 @@ corner(Topbar, 8)
 stroke(Topbar, 3, BLACK_OUT)
 glossyGradient(Topbar, BLUE_TOP, BLUE_BOT, 90)
 
--- FIGMA HIGH VISIBILITY RAYS OVERLAY (ZIndex = 402 - BEHIND TEXT AND BUTTONS)
+-- FIGMA LIGHT RAYS OVERLAY (ZIndex = 402 - EXACTLY HEADER SIZE)
 do
 	local raysOverlay = Instance.new("ImageLabel")
 	raysOverlay.Name = "FigmaRaysOverlay"
-	raysOverlay.Size = UDim2.new(1.2, 0, 1.4, 0)
-	raysOverlay.Position = UDim2.new(-0.1, 0, -0.2, 0)
+	raysOverlay.Size = UDim2.new(1, 0, 1, 0) -- STRICTLY EXACT HEADER SIZE (1x1 SCALE)
+	raysOverlay.Position = UDim2.new(0, 0, 0, 0)
 	raysOverlay.BackgroundTransparency = 1
 	raysOverlay.Image = "rbxassetid://10842502695" -- Figma style diagonal rays
 	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	raysOverlay.ImageTransparency = 0.20 -- HIGH VISIBILITY RAYS
+	raysOverlay.ImageTransparency = 0.18 -- CLEAR HIGH VISIBILITY
 	raysOverlay.ScaleType = Enum.ScaleType.Crop
-	raysOverlay.ZIndex = 402 -- Strictly behind badge, title, buttons
+	raysOverlay.ZIndex = 402 -- Strictly behind text and buttons
 	raysOverlay.Parent = Topbar
 
-	-- Floating ray beam accents
+	-- Ray beam accents clamped to header height
 	for i = 1, 3 do
 		local beam = Instance.new("Frame")
 		beam.Name = "FigmaRayBeam" .. i
 		beam.AnchorPoint = Vector2.new(0.5, 0.5)
-		beam.Size = UDim2.new(0, i * 50 + 40, 3, 0)
-		beam.Position = UDim2.new(i * 0.26, 0, 0.5, 0)
+		beam.Size = UDim2.new(0, i * 40 + 30, 1, 0) -- STRICTLY HEADER HEIGHT
+		beam.Position = UDim2.new(i * 0.28, 0, 0.5, 0)
 		beam.BackgroundColor3 = WHITE
-		beam.BackgroundTransparency = 0.82
+		beam.BackgroundTransparency = 0.85
 		beam.BorderSizePixel = 0
-		beam.Rotation = -32
+		beam.Rotation = -30
 		beam.ZIndex = 402
 		beam.Parent = Topbar
 
@@ -273,32 +273,32 @@ do
 		bg.Rotation = 90
 		bg.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0.15),
+			NumberSequenceKeypoint.new(0.5, 0.2),
 			NumberSequenceKeypoint.new(1, 1),
 		})
 		bg.Parent = beam
 	end
 end
 
--- Sheen animation across header (ZIndex = 403)
+-- Header Sheen Animation (Clamped to Header)
 do
 	local sheen = Instance.new("Frame")
 	sheen.Name = "sheen"
-	sheen.Size = UDim2.new(0, 120, 2.5, 0)
-	sheen.Position = UDim2.new(0, -160, -0.5, 0)
+	sheen.Size = UDim2.new(0, 80, 1, 0) -- STRICTLY HEADER HEIGHT
+	sheen.Position = UDim2.new(0, -100, 0, 0)
 	sheen.BackgroundColor3 = WHITE
 	sheen.BackgroundTransparency = 0.85
 	sheen.BorderSizePixel = 0
-	sheen.Rotation = 25
+	sheen.Rotation = 22
 	sheen.ZIndex = 403
 	sheen.Parent = Topbar
 
 	task.spawn(function()
 		while sheen.Parent do
 			task.wait(rng:NextNumber(4, 7))
-			sheen.Position = UDim2.new(0, -160, -0.5, 0)
+			sheen.Position = UDim2.new(0, -100, 0, 0)
 			tw(sheen, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Position = UDim2.new(1, 180, -0.5, 0)})
+				{Position = UDim2.new(1, 100, 0, 0)})
 		end
 	end)
 end
@@ -307,7 +307,7 @@ end
 local badge = Instance.new("Frame")
 badge.Name = "badge"
 badge.AnchorPoint = Vector2.new(0, 0.5)
-badge.Size = UDim2.new(0, 44, 0, 44)
+badge.Size = UDim2.new(0, 42, 0, 42)
 badge.Position = UDim2.new(0, 14, 0.5, 0)
 badge.BackgroundColor3 = Color3.fromRGB(240, 245, 255)
 badge.BorderSizePixel = 0
@@ -324,7 +324,7 @@ badgeTxt.Size = UDim2.new(1, 0, 1, 0)
 badgeTxt.BackgroundTransparency = 1
 badgeTxt.Text = "LH"
 badgeTxt.TextColor3 = Color3.fromRGB(0, 110, 210)
-badgeTxt.TextSize = 20
+badgeTxt.TextSize = 19
 badgeTxt.Font = F_STUD
 badgeTxt.ZIndex = 406
 badgeTxt.Parent = badge
@@ -334,12 +334,12 @@ textStroke(badgeTxt, 2, BLACK_OUT)
 local title = Instance.new("TextLabel")
 title.Name = "title"
 title.AnchorPoint = Vector2.new(0, 0.5)
-title.Size = UDim2.new(0, 280, 0, 28)
-title.Position = UDim2.new(0, 68, 0.5, -8)
+title.Size = UDim2.new(0, 280, 0, 26)
+title.Position = UDim2.new(0, 66, 0.5, -8)
 title.BackgroundTransparency = 1
 title.Text = "LOADED HUB"
 title.TextColor3 = WHITE
-title.TextSize = 24
+title.TextSize = 23
 title.Font = F_STUD
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 405
@@ -350,7 +350,7 @@ local sub = Instance.new("TextLabel")
 sub.Name = "sub"
 sub.AnchorPoint = Vector2.new(0, 0.5)
 sub.Size = UDim2.new(0, 280, 0, 16)
-sub.Position = UDim2.new(0, 70, 0.5, 14)
+sub.Position = UDim2.new(0, 68, 0.5, 13)
 sub.BackgroundTransparency = 1
 sub.Text = "good games scripts"
 sub.TextColor3 = Color3.fromRGB(210, 240, 255)
@@ -365,13 +365,13 @@ textStroke(sub, 1.5, BLACK_OUT)
 local hidebtn = Instance.new("TextButton")
 hidebtn.Name = "hidebtn"
 hidebtn.AnchorPoint = Vector2.new(1, 0.5)
-hidebtn.Size = UDim2.new(0, 100, 0, 36)
-hidebtn.Position = UDim2.new(1, -62, 0.5, 0)
+hidebtn.Size = UDim2.new(0, 90, 0, 34)
+hidebtn.Position = UDim2.new(1, -56, 0.5, 0)
 hidebtn.BackgroundColor3 = Color3.fromRGB(0, 130, 220)
 hidebtn.AutoButtonColor = false
-hidebtn.Text = "Hide UI"
+hidebtn.Text = "hide ui"
 hidebtn.TextColor3 = WHITE
-hidebtn.TextSize = 16
+hidebtn.TextSize = 15
 hidebtn.Font = F_STUD
 hidebtn.ZIndex = 405
 hidebtn.Parent = Topbar
@@ -392,13 +392,13 @@ end)
 local closebtn = Instance.new("TextButton")
 closebtn.Name = "closebtn"
 closebtn.AnchorPoint = Vector2.new(1, 0.5)
-closebtn.Size = UDim2.new(0, 38, 0, 38)
+closebtn.Size = UDim2.new(0, 36, 0, 36)
 closebtn.Position = UDim2.new(1, -12, 0.5, 0)
 closebtn.BackgroundColor3 = RED_TOP
 closebtn.AutoButtonColor = false
 closebtn.Text = "X"
 closebtn.TextColor3 = WHITE
-closebtn.TextSize = 20
+closebtn.TextSize = 19
 closebtn.Font = F_STUD
 closebtn.ZIndex = 405
 closebtn.Parent = Topbar
@@ -416,14 +416,14 @@ closebtn.MouseLeave:Connect(function()
 end)
 
 --------------------------------------------------------------
--- TAB LIST (100% OPAQUE - NO STUDS INSIDE TABS)
+-- TAB LIST (100% OPAQUE - ZERO STUDS INSIDE TABS)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
-TabList.Size = UDim2.new(0, 220, 1, -128)
-TabList.Position = UDim2.new(0, 12, 0, 80)
+TabList.Size = UDim2.new(0, 220, 1, -124)
+TabList.Position = UDim2.new(0, 12, 0, 78)
 TabList.BackgroundColor3 = PANEL_BG
-TabList.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS (BLOCKS ALL OUTER STUDS)
+TabList.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS
 TabList.BorderSizePixel = 0
 TabList.ZIndex = 401
 TabList.Parent = MainFrame
@@ -510,7 +510,7 @@ local function icon(parent, kind)
 	return box
 end
 
--- Tab Button Creator with Sleek Multi-Color Theme Gradients (NO STUDS INSIDE)
+-- Tab Button Creator
 local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
@@ -530,10 +530,9 @@ local function newTab(name, label, order)
 
 	local theme = TAB_THEMES[name] or TAB_THEMES.Home
 
-	-- Clean Glossy Gradient (NO STUD TEXTURES INSIDE TABS)
+	-- Glossy Gradient (NO STUDS INSIDE)
 	local tabGrad = glossyGradient(b, TAB_INACT_1, TAB_INACT_2, 90)
 
-	-- Highlight overlay
 	local hl = Instance.new("Frame")
 	hl.Name = "hl"
 	hl.Size = UDim2.new(1, 0, 1, 0)
@@ -544,7 +543,6 @@ local function newTab(name, label, order)
 	hl.Parent = b
 	corner(hl, 6)
 
-	-- InnerShadow expected by main.lua
 	local ish = Instance.new("Frame")
 	ish.Name = "InnerShadow"
 	ish.Size = UDim2.new(1, 0, 1, 0)
@@ -555,7 +553,6 @@ local function newTab(name, label, order)
 	ish.Parent = b
 	corner(ish, 6)
 
-	-- Left Accent Bar (Glowing Accent Color)
 	local mark = Instance.new("Frame")
 	mark.Name = "mark"
 	mark.AnchorPoint = Vector2.new(0, 0.5)
@@ -603,7 +600,6 @@ local function newTab(name, label, order)
 		tw(icScale, SMOOTH, {Scale = 1})
 	end)
 
-	-- Synchronized with main.lua tab switching signal
 	b:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
 		active = b.BackgroundTransparency < 0.5
 
@@ -630,14 +626,14 @@ newTab("Settings",  "Settings",   4)
 newTab("Credits",   "Credits",    5)
 
 --------------------------------------------------------------
--- SECTION CONTAINERS (100% OPAQUE DARK GLASS - NO STUDS INSIDE)
+-- SECTION CONTAINERS (OPAQUE DARK GLASS - ALL TABS 100% VISIBLE FIX)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
-SectionContainers.Size = UDim2.new(1, -256, 1, -128)
-SectionContainers.Position = UDim2.new(0, 244, 0, 80)
+SectionContainers.Size = UDim2.new(1, -256, 1, -124)
+SectionContainers.Position = UDim2.new(0, 244, 0, 78)
 SectionContainers.BackgroundColor3 = PANEL_BG
-SectionContainers.BackgroundTransparency = 0 -- 100% OPAQUE (BLOCKS ALL OUTER STUDS)
+SectionContainers.BackgroundTransparency = 0 -- OPAQUE (BLOCKS STUDS)
 SectionContainers.BorderSizePixel = 0
 SectionContainers.ClipsDescendants = true
 SectionContainers.ZIndex = 401
@@ -653,7 +649,7 @@ local function newSection(name)
 	f.Size = UDim2.new(1, -16, 1, -14)
 	f.Position = UDim2.new(0.5, 0, 1, 0)
 	f.BackgroundColor3 = PANEL_BG
-	f.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS
+	f.BackgroundTransparency = 0 -- OPAQUE DARK GLASS
 	f.BorderSizePixel = 0
 	f.ScrollBarThickness = 5
 	f.ScrollBarImageColor3 = BLUE_TOP
@@ -755,7 +751,7 @@ fnote.AnchorPoint = Vector2.new(0, 0.5)
 fnote.Size = UDim2.new(0, 300, 1, 0)
 fnote.Position = UDim2.new(0, 24, 0.5, 0)
 fnote.BackgroundTransparency = 1
-fnote.Text = "Loaded Hub - by loaded"
+fnote.Text = "loaded hub · by loaded"
 fnote.TextColor3 = LIGHT_GRAY
 fnote.TextSize = 13
 fnote.Font = F_SUB
@@ -885,7 +881,7 @@ do
 end
 
 --------------------------------------------------------------
--- HOME LABELS
+-- HOME LABELS (CASUAL SCRIPT DEV STYLE)
 --------------------------------------------------------------
 local home = SectionContainers.homeframe
 local function homeLabel(name, text, col, size, order)
@@ -913,7 +909,7 @@ local function homeLabel(name, text, col, size, order)
 end
 
 local head = homeLabel("ythead", "LOADED HUB", WHITE, 26, 1)
-homeLabel("welcomeLabel", "Open the Game tab for active game options.", LIGHT_GRAY, 15, 2)
+homeLabel("welcomeLabel", "check game tab for active options", LIGHT_GRAY, 15, 2)
 
 local sep = Instance.new("Frame")
 sep.Size = UDim2.new(1, -16, 0, 2)
@@ -923,16 +919,16 @@ sep.LayoutOrder = 3
 sep.ZIndex = 403
 sep.Parent = home
 
-homeLabel("execLabel",    "Executor: ...", WHITE, 15, 4)
-homeLabel("versionLabel", "Version: ...",  WHITE, 15, 5)
-homeLabel("placeLabel",   "PlaceId: ...",  WHITE, 15, 6)
+homeLabel("execLabel",    "exec: ...", Color3.fromRGB(0, 225, 255), 15, 4)
+homeLabel("versionLabel", "ver: 1.0",  Color3.fromRGB(180, 140, 255), 15, 5)
+homeLabel("placeLabel",   "placeid: ...", Color3.fromRGB(0, 230, 130), 15, 6)
 
 local sep2 = sep:Clone()
 sep2.LayoutOrder = 7
 sep2.Parent = home
 
-homeLabel("discan",    "Discord: redacted", BLUE_TOP, 15, 8)
-homeLabel("bugsLabel", "Bugs? Report them at redacted", MUTED_GRAY, 14, 9)
+homeLabel("discan",    "discord: redacted", BLUE_TOP, 15, 8)
+homeLabel("bugsLabel", "bugs? report in discord", MUTED_GRAY, 14, 9)
 
 task.spawn(function()
 	for _, l in ipairs(home:GetChildren()) do
