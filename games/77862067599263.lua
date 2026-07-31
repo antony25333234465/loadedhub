@@ -1,5 +1,5 @@
---// Obby as a Brainrot (Universal Farm - Funciona para todas las rarezas)
---// Compatible con Common, Uncommon, Rare, Epic, Legendary, Mythic, Secret, Celestial, Cosmic, Hacker y OG.
+--// Obby as a Brainrot (Universal Farm + Auto Collect + Auto Upgrade)
+--// Funciona con CUALQUIER Brainrot (67, Common, Celestial, Secret, etc.) usando el OG Bypass.
 
 return function(king, cfg, el)
 	local players = game:GetService("Players")
@@ -8,7 +8,7 @@ return function(king, cfg, el)
 	local plr     = players.LocalPlayer
 
 	----------------------------------------------------------
-	-- BASE DE DATOS LOCAL (Extraída del Dump de ItemConfigurations)
+	-- BASE DE DATOS LOCAL DE BRAINROTS
 	----------------------------------------------------------
 	local ITEM_DATABASE = {
 		-- Common
@@ -99,49 +99,16 @@ return function(king, cfg, el)
 	}
 
 	----------------------------------------------------------
-	-- FUNCIÓN: OBTENER RAREZA
+	-- CONFIG
 	----------------------------------------------------------
-	local function getItemRarity(itemName)
-		-- 1. Intentar leer directo de ReplicatedStorage en ejecución
-		local modules = rs:FindFirstChild("Modules")
-		if modules then
-			local itemConfigModule = modules:FindFirstChild("ItemConfigurations")
-			if itemConfigModule then
-				local ok, itemConfig = pcall(require, itemConfigModule)
-				if ok and itemConfig then
-					if itemConfig.GetItemData then
-						local data = itemConfig.GetItemData(itemName)
-						if data and data.Rarity then return data.Rarity end
-					elseif itemConfig.Items and itemConfig.Items[itemName] then
-						local data = itemConfig.Items[itemName]
-						if data and data.Rarity then return data.Rarity end
-					end
-				end
-			end
-		end
-
-		-- 2. Fallback a la base de datos local
-		if ITEM_DATABASE[itemName] then
-			return ITEM_DATABASE[itemName]
-		end
-
-		return "Celestial"
-	end
-
-	----------------------------------------------------------
-	-- CONFIG INICIAL (Target predeterminado "67")
-	----------------------------------------------------------
-	local initialTarget = "67"
-	local initialRarity = getItemRarity(initialTarget)
-
 	local CONFIG = {
-		TargetName  = initialTarget,
+		TargetName  = "67",
+		BypassOG    = true, -- Mantiene Rarity = "OG" para forzar la aceptación del servidor
 		LandingPos  = Vector3.new(4, -99, 4514),
 		TeleportPos = Vector3.new(8, 21, -558),
 		PrePos      = Vector3.new(9, 19, -493),
-		Mutation    = "Normal",
-		Rarity      = initialRarity,
-		BlockName   = "Uncommon Lucky Block", -- Mantiene el bloque válido del juego
+		Mutation    = "Disco", -- "Normal", "Disco", "Golden", "Diamond", etc.
+		BlockName   = "Uncommon Lucky Block",
 		Power       = 10.642112568062,
 	}
 
@@ -175,7 +142,10 @@ return function(king, cfg, el)
 		local c = plr.Character
 		if not c then return end
 		local hrp = c:FindFirstChild("HumanoidRootPart")
-		if hrp then hrp.CFrame = CFrame.new(pos) end
+		if hrp then 
+			hrp.CFrame = CFrame.new(pos)
+		end
+		pcall(function() c:MoveTo(pos) end)
 	end
 
 	----------------------------------------------------------
@@ -185,15 +155,18 @@ return function(king, cfg, el)
 	local lblState  = el:Stat(king, "state", "idle", "dim")
 	local lblCount  = el:Stat(king, "caught", "0", "gold")
 	local lblTarget = el:Stat(king, "target", CONFIG.TargetName, "loot")
-	local lblRarity = el:Stat(king, "rarity", CONFIG.Rarity, "loot")
+	local lblBypass = el:Stat(king, "bypass og", "ENABLED", "ok")
 
 	----------------------------------------------------------
 	-- STATE
 	----------------------------------------------------------
-	local farming = false
-	local gen = 0
-	local count = 0
-	local tgFarm
+	local farming    = false
+	local autoCol    = false
+	local autoUpgr   = false
+	local autoRebr   = false
+	local gen        = 0
+	local count      = 0
+	local tgFarm, tgCol, tgUpgr, tgRebr
 
 	local function setState(txt, kind)
 		lblState.Text = txt
@@ -205,32 +178,101 @@ return function(king, cfg, el)
 	end
 
 	----------------------------------------------------------
-	-- DISPARO DE REMOTES
+	-- AUTO COLLECT (RECOLECCIÓN DE PLATAFORMAS/PLOT)
+	----------------------------------------------------------
+	local function collectPlot()
+		local myPlot = workspace:FindFirstChild("Plot_" .. plr.Name)
+		if not myPlot then return end
+
+		local floors = {"Floor1", "Floor2", "Floor3"}
+		for _, flName in ipairs(floors) do
+			local floorObj = myPlot:FindFirstChild(flName)
+			if floorObj and floorObj:FindFirstChild("Slots") then
+				for _, slot in pairs(floorObj.Slots:GetChildren()) do
+					local touch = slot:FindFirstChild("CollectTouch")
+					if touch and plr.Character and plr.Character:FindFirstChild("Head") then
+						pcall(function()
+							firetouchinterest(plr.Character.Head, touch, true)
+							task.wait(0.01)
+							firetouchinterest(plr.Character.Head, touch, false)
+						end)
+					end
+				end
+			end
+		end
+	end
+
+	task.spawn(function()
+		while true do
+			if autoCol then
+				pcall(collectPlot)
+			end
+			task.wait(0.5)
+		end
+	end)
+
+	----------------------------------------------------------
+	-- AUTO UPGRADE & AUTO REBIRTH
+	----------------------------------------------------------
+	task.spawn(function()
+		while true do
+			if autoUpgr then
+				local events = rs:FindFirstChild("Events")
+				if events and events:FindFirstChild("RequestSlotUpgrade") then
+					local req = events.RequestSlotUpgrade
+					for _, floor in ipairs({"Floor1", "Floor2", "Floor3"}) do
+						for i = 1, 10 do
+							pcall(function() req:FireServer(floor, "Slot" .. tostring(i)) end)
+						end
+					end
+				end
+			end
+			task.wait(1)
+		end
+	end)
+
+	task.spawn(function()
+		while true do
+			if autoRebr then
+				local events = rs:FindFirstChild("Events")
+				if events and events:FindFirstChild("RequestRebirth") then
+					pcall(function() events.RequestRebirth:FireServer() end)
+				end
+			end
+			task.wait(3)
+		end
+	end)
+
+	----------------------------------------------------------
+	-- DISPARO DE REMOTES (CON OG BYPASS)
 	----------------------------------------------------------
 	local function triggerThrow()
 		tp(CONFIG.PrePos)
-		task.wait(0.25)
-		r.ZoneBat:FireServer(true)
-		task.wait(0.12)
-		r.Started:FireServer()
-		task.wait(0.12)
-		r.BatHit:FireServer(nil, false)
-		task.wait(0.12)
-		r.Cleanup:FireServer()
-		task.wait(0.12)
+		task.wait(0.3)
 
-		-- Envia la información sincronizada con el servidor
+		r.ZoneBat:FireServer(true)
+		task.wait(0.05)
+		r.Started:FireServer()
+		task.wait(0.05)
+		r.BatHit:FireServer(nil, false)
+		task.wait(0.05)
+		r.Cleanup:FireServer()
+		task.wait(0.05)
+
+		-- Determinamos la rareza a enviar: Si BypassOG está activo, enviamos "OG"
+		local rarityToSend = CONFIG.BypassOG and "OG" or (ITEM_DATABASE[CONFIG.TargetName] or "Celestial")
+
 		r.Landed:FireServer({
 			LandingPosition = CONFIG.LandingPos,
 			ItemName        = CONFIG.TargetName,
-			Rarity          = CONFIG.Rarity,
+			Rarity          = rarityToSend,
 			BlockName       = CONFIG.BlockName,
-			LandingRarity   = CONFIG.Rarity,
+			LandingRarity   = rarityToSend,
 			Mutation        = CONFIG.Mutation,
 			Power           = CONFIG.Power,
 		})
 
-		task.wait(0.55)
+		task.wait(0.5)
 		tp(CONFIG.TeleportPos)
 	end
 
@@ -246,10 +288,13 @@ return function(king, cfg, el)
 				lblCount.Text = tostring(count)
 				setState("caught!", "ok")
 
+				-- Ejecuta recolección rápida de las plataformas
+				pcall(collectPlot)
+
 				if count % 10 == 0 then
-					el:Notify("streak!", "caught " .. count .. "x " .. CONFIG.TargetName .. " (" .. CONFIG.Rarity .. ")", "ok", 3.4)
+					el:Notify("streak!", "caught " .. count .. "x " .. CONFIG.TargetName, "ok", 3.4)
 				end
-				task.wait(0.4)
+				task.wait(0.3)
 				if farming and gen == mine then setState("farming", "warn") end
 			end)
 
@@ -268,7 +313,7 @@ return function(king, cfg, el)
 		local mine = gen
 		if tgFarm then tgFarm.Set(true) end
 		setState("farming", "warn")
-		el:Notify("running", "farming " .. CONFIG.TargetName .. " [" .. CONFIG.Rarity .. "]", "ok", 2.4)
+		el:Notify("running", "farming " .. CONFIG.TargetName, "ok", 2.4)
 		task.spawn(loop, mine)
 	end
 
@@ -289,19 +334,23 @@ return function(king, cfg, el)
 		if v then start() else stop() end
 	end)
 
-	el:Button("test single throw", king, function()
-		local ok, err = pcall(triggerThrow)
-		if ok then
-			el:Notify("test fired", "sent " .. CONFIG.TargetName .. " (" .. CONFIG.Rarity .. ")", "ok", 2.5)
-		else
-			el:Notify("test failed", tostring(err), "err", 3)
-		end
+	tgCol = el:Toggle("Auto Collect Base", king, true, function(v)
+		autoCol = v
+		el:Notify("collect", v and "enabled" or "disabled", "info", 1.8)
+	end)
+	autoCol = true
+
+	tgUpgr = el:Toggle("Auto Upgrade Slots", king, false, function(v)
+		autoUpgr = v
+		el:Notify("upgrade", v and "enabled" or "disabled", "info", 1.8)
+	end)
+
+	tgRebr = el:Toggle("Auto Rebirth", king, false, function(v)
+		autoRebr = v
+		el:Notify("rebirth", v and "enabled" or "disabled", "info", 1.8)
 	end)
 
 	el:Button("reset counter", king, function()
-		if count == 0 then
-			return el:Notify("nothing to reset", "counter is already 0", "warn", 2.2)
-		end
 		local old = count
 		count = 0
 		lblCount.Text = "0"
@@ -309,7 +358,7 @@ return function(king, cfg, el)
 	end)
 
 	----------------------------------------------------------
-	-- TARGET Y CONFIGURACIÓN
+	-- TARGET Y BYPASS SETTINGS
 	----------------------------------------------------------
 	el:Divider(king)
 	el:Header(king, "target settings")
@@ -318,26 +367,14 @@ return function(king, cfg, el)
 		if txt == "" then return end
 		CONFIG.TargetName = txt
 		lblTarget.Text = txt
-
-		-- Detecta la rareza correcta para este Brainrot
-		local autoRarity = getItemRarity(txt)
-		CONFIG.Rarity = autoRarity
-		lblRarity.Text = autoRarity
-
-		el:Notify("target changed", txt .. " -> " .. autoRarity, "ok", 2.5)
+		el:Notify("target set", txt, "ok", 2.2)
 	end)
 
-	el:Textbox("Rarity Override", king, CONFIG.Rarity, function(txt)
-		if txt == "" then return end
-		CONFIG.Rarity = txt
-		lblRarity.Text = txt
-		el:Notify("rarity forced", txt, "ok", 2)
-	end)
-
-	el:Textbox("Block Name", king, CONFIG.BlockName, function(txt)
-		if txt == "" then return end
-		CONFIG.BlockName = txt
-		el:Notify("block set", txt, "ok", 2)
+	el:Toggle("OG Bypass Mode", king, true, function(v)
+		CONFIG.BypassOG = v
+		lblBypass.Text = v and "ENABLED" or "DISABLED"
+		lblBypass.TextColor3 = v and Color3.fromRGB(124, 190, 84) or Color3.fromRGB(203, 82, 66)
+		el:Notify("bypass og", v and "enabled (recommended)" or "disabled", "info", 2.2)
 	end)
 
 	el:Textbox("Mutation", king, CONFIG.Mutation, function(txt)
@@ -371,5 +408,5 @@ return function(king, cfg, el)
 		end
 	end)
 
-	el:Label(king, "F = toggle on / off", Color3.fromRGB(120, 110, 146), 13)
+	el:Label(king, "F = toggle farm on / off", Color3.fromRGB(120, 110, 146), 13)
 end
