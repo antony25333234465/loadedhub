@@ -1,45 +1,46 @@
 --// ui.lua
---// v5 - rebuilt to match the studio model 1:1. no more studs.
---// pulled the colors straight off a screenshot of the original so
---// they are the real ones, not something i eyeballed
---// node names are the ones main.lua expects:
+--// v6 - LH rebrand, animated backdrop, footer w/ fps.
+--// spent way too long on the drifting shapes, the trick was
+--// clipping them on the main frame and keeping them at zindex 400
+--// so they never fight the panels for draw order.
+--// v5 was the flat rebuild, v4 was the studs one (rip)
+--//
+--// nodes main.lua reaches for:
 --//   togglebtn, Frame, TopBar, sectionContainers, tablist,
---//   hidebtn, closebtn, HomeTab, gameFrame, ...
+--//   hidebtn, closebtn, HomeTab..CreditsTab, homeframe..creditsFrame
 
 local tweenservice = game:GetService("TweenService")
+local runservice   = game:GetService("RunService")
 
 --------------------------------------------------------------
--- theme
--- BODY 79,75,164   the big lilac panels
--- BAR  52,49,105   topbar and every border
--- EDGE 39,37,79    the dark outline around the whole thing
+-- theme. pulled off a screenshot of the studio model so these
+-- are the real values, not something i eyeballed
 --------------------------------------------------------------
-local BODY   = Color3.fromRGB(79, 75, 164)
-local BAR    = Color3.fromRGB(52, 49, 105)
-local EDGE   = Color3.fromRGB(39, 37, 79)
+local BODY   = Color3.fromRGB(79, 75, 164)   -- the big panels
+local BAR    = Color3.fromRGB(52, 49, 105)   -- topbar + every border
+local EDGE   = Color3.fromRGB(39, 37, 79)    -- outline round the whole thing
 
-local HOVER  = Color3.fromRGB(92, 88, 180)   -- body a bit lighter
-local SEL    = Color3.fromRGB(99, 94, 190)   -- the active tab
-local BOX    = Color3.fromRGB(68, 64, 142)   -- sunken bits, textboxes
+local DEEP   = Color3.fromRGB(44, 41, 90)    -- backdrop, a hair off BAR
+local HOVER  = Color3.fromRGB(92, 88, 180)
+local SEL    = Color3.fromRGB(103, 98, 196)
+local BOX    = Color3.fromRGB(68, 64, 142)
 
 local WHITE  = Color3.fromRGB(255, 255, 255)
 local GRAY   = Color3.fromRGB(196, 193, 224)
 local DIM    = Color3.fromRGB(150, 146, 192)
+local LILAC  = Color3.fromRGB(178, 172, 232)
 
 local GREEN  = Color3.fromRGB(126, 217, 87)
-local ORANGE = Color3.fromRGB(255, 176, 46)
 local RED    = Color3.fromRGB(226, 82, 82)
-local GOLD   = Color3.fromRGB(255, 205, 74)
 
--- the model uses a serif, closest one roblox ships is this
 local F  = Enum.Font.Merriweather
 local F2 = Enum.Font.SourceSansSemibold
 
 local SMOOTH = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local GLIDE  = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local BOUNCE = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SNAP   = TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
---------------------------------------------------------------
--- helpers
 --------------------------------------------------------------
 local function tw(o, i, p)
 	local t = tweenservice:Create(o, i, p)
@@ -58,7 +59,6 @@ local function corner(p, rad)
 	return c
 end
 
--- every panel in the model has the same 3px bar-colored outline
 local function stroke(p, th, col)
 	local s = Instance.new("UIStroke")
 	s.Thickness = th or 3
@@ -68,12 +68,132 @@ local function stroke(p, th, col)
 	return s
 end
 
+local rng = Random.new(os.time() % 99991)
+
 --------------------------------------------------------------
--- flat button. no studs, no sinking, just a tint on hover
+-- animated backdrop
+-- diamonds floating up + a gradient that never sits still.
+-- everything here is Active=false or it starts eating clicks
+--------------------------------------------------------------
+local function backdrop(parent)
+	local bg = Instance.new("Frame")
+	bg.Name = "backdrop"
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.BackgroundColor3 = DEEP
+	bg.BorderSizePixel = 0
+	bg.ClipsDescendants = true
+	bg.Active = false
+	bg.ZIndex = 400
+	bg.Parent = parent
+
+	-- slow colour wash. rotation goes 0..360 forever, the tween
+	-- would snap back at 360 so i just kick it again each lap
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(58, 54, 118)),
+		ColorSequenceKeypoint.new(0.47, Color3.fromRGB(44, 41, 90)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(66, 61, 132)),
+	})
+	g.Rotation = 25
+	g.Parent = bg
+
+	task.spawn(function()
+		while bg.Parent do
+			tw(g, TweenInfo.new(9.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Rotation = 205})
+			task.wait(9.4)
+			if not bg.Parent then return end
+			tw(g, TweenInfo.new(9.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Rotation = 25})
+			task.wait(9.4)
+		end
+	end)
+
+	-- two fat blurry blobs so the corners arent dead flat
+	for i = 1, 2 do
+		local blob = Instance.new("Frame")
+		blob.Name = "blob" .. i
+		blob.AnchorPoint = Vector2.new(0.5, 0.5)
+		blob.Size = UDim2.new(0, 290, 0, 290)
+		blob.Position = UDim2.new(i == 1 and 0.18 or 0.86, 0, i == 1 and 0.24 or 0.78, 0)
+		blob.BackgroundColor3 = i == 1
+			and Color3.fromRGB(96, 88, 196)
+			or Color3.fromRGB(72, 66, 152)
+		blob.BackgroundTransparency = 0.87
+		blob.BorderSizePixel = 0
+		blob.Active = false
+		blob.ZIndex = 400
+		blob.Parent = bg
+		corner(blob, 999)
+
+		task.spawn(function()
+			local up = true
+			while blob.Parent do
+				local dx = rng:NextNumber(-0.07, 0.07)
+				local dy = up and -0.09 or 0.09
+				up = not up
+				tw(blob, TweenInfo.new(7.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Position = UDim2.new(
+						math.clamp(blob.Position.X.Scale + dx, 0.05, 0.95), 0,
+						math.clamp(blob.Position.Y.Scale + dy, 0.05, 0.95), 0),
+				})
+				task.wait(7.7)
+			end
+		end)
+	end
+
+	-- the diamonds. 11 felt right, 20 was noisy
+	for i = 1, 11 do
+		local d = Instance.new("Frame")
+		d.Name = "shard"
+		d.AnchorPoint = Vector2.new(0.5, 0.5)
+		d.BackgroundColor3 = i % 3 == 0
+			and Color3.fromRGB(126, 118, 224)
+			or Color3.fromRGB(98, 92, 190)
+		d.BorderSizePixel = 0
+		d.Rotation = 45
+		d.Active = false
+		d.ZIndex = 400
+		d.Parent = bg
+		corner(d, 3)
+
+		task.spawn(function()
+			-- stagger them or they all launch on the same frame and
+			-- it looks like a wave instead of drifting
+			task.wait(rng:NextNumber(0, 6.5))
+			while d.Parent do
+				local size = rng:NextInteger(9, 27)
+				local x    = rng:NextNumber(0.03, 0.97)
+				local dur  = rng:NextNumber(11.5, 23)
+				local spin = rng:NextNumber(-140, 140)
+
+				d.Size = UDim2.new(0, size, 0, size)
+				d.Position = UDim2.new(x, 0, 1.15, 0)
+				d.Rotation = rng:NextNumber(0, 90)
+				d.BackgroundTransparency = 1
+
+				tw(d, TweenInfo.new(1.6), {BackgroundTransparency = rng:NextNumber(0.72, 0.9)})
+				tw(d, TweenInfo.new(dur, Enum.EasingStyle.Linear), {
+					Position = UDim2.new(x + rng:NextNumber(-0.11, 0.11), 0, -0.2, 0),
+					Rotation = d.Rotation + spin,
+				})
+				task.wait(dur - 1.7)
+				if not d.Parent then return end
+				tw(d, TweenInfo.new(1.6), {BackgroundTransparency = 1})
+				task.wait(1.8)
+			end
+		end)
+	end
+
+	return bg
+end
+
+--------------------------------------------------------------
+-- flat button. tint on hover, darken on press, ripple. no studs
 --------------------------------------------------------------
 local function button(parent, size, pos, color, text, txtSize, z, txtCol)
-	-- keeping the holder a TextButton so ui.togglebtn and
-	-- Topbar.hidebtn are the clickable node themselves
+	-- holder IS the TextButton so ui.togglebtn / Topbar.hidebtn
+	-- land on something with MouseButton1Click
 	local b = Instance.new("TextButton")
 	b.Size = size
 	b.Position = pos
@@ -84,22 +204,30 @@ local function button(parent, size, pos, color, text, txtSize, z, txtCol)
 	b.TextSize = txtSize
 	b.Font = F
 	b.BorderSizePixel = 0
+	b.ClipsDescendants = true
 	b.ZIndex = z
 	b.Parent = parent
 	corner(b, 8)
 	stroke(b, 3)
 
+	local sc = Instance.new("UIScale")
+	sc.Parent = b
+
 	b.MouseEnter:Connect(function()
 		tw(b, SMOOTH, {BackgroundColor3 = lighten(color, 1.16)})
+		tw(sc, SMOOTH, {Scale = 1.03})
 	end)
 	b.MouseLeave:Connect(function()
 		tw(b, SMOOTH, {BackgroundColor3 = color})
+		tw(sc, SMOOTH, {Scale = 1})
 	end)
 	b.MouseButton1Down:Connect(function()
-		tw(b, TweenInfo.new(0.07), {BackgroundColor3 = lighten(color, 0.86)})
+		tw(b, SNAP, {BackgroundColor3 = lighten(color, 0.86)})
+		tw(sc, SNAP, {Scale = 0.97})
 	end)
 	b.MouseButton1Up:Connect(function()
 		tw(b, SMOOTH, {BackgroundColor3 = lighten(color, 1.16)})
+		tw(sc, BOUNCE, {Scale = 1.03})
 	end)
 
 	return b
@@ -109,7 +237,7 @@ end
 -- ROOT
 --------------------------------------------------------------
 local ui = Instance.new("ScreenGui")
-ui.Name = "\0BrainrotHub"
+ui.Name = "\0LoadedHub"
 ui.ResetOnSpawn = false
 ui.IgnoreGuiInset = true
 ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -118,14 +246,30 @@ ui.DisplayOrder = 9999
 --------------------------------------------------------------
 -- togglebtn
 --------------------------------------------------------------
-local togglebtn = button(ui, UDim2.new(0, 152, 0, 40),
-	UDim2.new(0.5, -76, 0.03, 0), BAR, "Show UI", 17, 600)
+local togglebtn = button(ui, UDim2.new(0, 168, 0, 42),
+	UDim2.new(0.5, -84, 0.03, 0), BAR, "loaded hub", 18, 600)
 togglebtn.Name = "togglebtn"
 togglebtn.Visible = false
 
+-- breathes a bit while its sitting there so you notice it
+task.spawn(function()
+	local s = togglebtn:FindFirstChildOfClass("UIScale")
+	while togglebtn.Parent do
+		if togglebtn.Visible then
+			tw(s, TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Scale = 1.035})
+			task.wait(1.4)
+			tw(s, TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Scale = 1})
+			task.wait(1.4)
+		else
+			task.wait(0.5)
+		end
+	end
+end)
+
 --------------------------------------------------------------
 -- Frame
--- model is 782x477 so im keeping that
 --------------------------------------------------------------
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Frame"
@@ -139,30 +283,66 @@ MainFrame.ZIndex = 400
 MainFrame.Parent = ui
 corner(MainFrame, 14)
 
--- the dark ring around everything
 local outer = Instance.new("UIStroke")
 outer.Thickness = 3
 outer.Color = EDGE
 outer.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 outer.Parent = MainFrame
 
+backdrop(MainFrame)
+
 local scMain = Instance.new("UIScale")
-scMain.Scale = 0.92
+scMain.Scale = 0.9
 scMain.Parent = MainFrame
-tw(scMain, TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
+tw(scMain, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 
 --------------------------------------------------------------
--- TopBar   (74px tall in the model)
+-- TopBar
 --------------------------------------------------------------
 local Topbar = Instance.new("Frame")
 Topbar.Name = "TopBar"
 Topbar.Size = UDim2.new(1, 0, 0, 74)
 Topbar.BackgroundColor3 = BAR
+Topbar.BackgroundTransparency = 0.08
 Topbar.BorderSizePixel = 0
+Topbar.ClipsDescendants = true
 Topbar.ZIndex = 401
 Topbar.Parent = MainFrame
 
--- the badge on the left
+-- a sheen that crosses the bar every so often
+do
+	local sheen = Instance.new("Frame")
+	sheen.Name = "sheen"
+	sheen.Size = UDim2.new(0, 90, 2, 0)
+	sheen.Position = UDim2.new(0, -140, -0.5, 0)
+	sheen.BackgroundColor3 = WHITE
+	sheen.BackgroundTransparency = 0.94
+	sheen.BorderSizePixel = 0
+	sheen.Rotation = 14
+	sheen.Active = false
+	sheen.ZIndex = 402
+	sheen.Parent = Topbar
+
+	task.spawn(function()
+		while sheen.Parent do
+			task.wait(rng:NextNumber(4.5, 8))
+			sheen.Position = UDim2.new(0, -140, -0.5, 0)
+			tw(sheen, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Position = UDim2.new(1, 160, -0.5, 0)})
+		end
+	end)
+end
+
+local topLine = Instance.new("Frame")
+topLine.Size = UDim2.new(1, 0, 0, 2)
+topLine.Position = UDim2.new(0, 0, 1, -2)
+topLine.BackgroundColor3 = EDGE
+topLine.BackgroundTransparency = 0.35
+topLine.BorderSizePixel = 0
+topLine.ZIndex = 403
+topLine.Parent = Topbar
+
+-- badge
 local badge = Instance.new("Frame")
 badge.Name = "badge"
 badge.AnchorPoint = Vector2.new(0, 0.5)
@@ -173,23 +353,66 @@ badge.BorderSizePixel = 0
 badge.ZIndex = 403
 badge.Parent = Topbar
 corner(badge, 10)
-stroke(badge, 2, Color3.fromRGB(120, 115, 190))
+stroke(badge, 2, Color3.fromRGB(124, 118, 196))
 
 local badgeTxt = Instance.new("TextLabel")
+badgeTxt.Name = "lh"
 badgeTxt.Size = UDim2.new(1, 0, 1, 0)
 badgeTxt.BackgroundTransparency = 1
-badgeTxt.Text = "BH"
-badgeTxt.TextColor3 = Color3.fromRGB(178, 172, 232)
-badgeTxt.TextSize = 15
+badgeTxt.Text = "LH"
+badgeTxt.TextColor3 = LILAC
+badgeTxt.TextSize = 17
 badgeTxt.Font = F
 badgeTxt.ZIndex = 404
 badgeTxt.Parent = badge
 
--- in the model the right side is plain text, not a boxed button
+do
+	local br = Instance.new("UIScale")
+	br.Parent = badge
+	task.spawn(function()
+		while badge.Parent do
+			tw(br, TweenInfo.new(2.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Scale = 1.055})
+			task.wait(2.2)
+			tw(br, TweenInfo.new(2.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Scale = 1})
+			task.wait(2.2)
+		end
+	end)
+end
+
+local title = Instance.new("TextLabel")
+title.Name = "title"
+title.AnchorPoint = Vector2.new(0, 0.5)
+title.Size = UDim2.new(0, 260, 0, 32)
+title.Position = UDim2.new(0, 74, 0.5, -7)
+title.BackgroundTransparency = 1
+title.Text = "loaded hub"
+title.TextColor3 = WHITE
+title.TextSize = 25
+title.Font = F
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 404
+title.Parent = Topbar
+
+local sub = Instance.new("TextLabel")
+sub.Name = "sub"
+sub.AnchorPoint = Vector2.new(0, 0.5)
+sub.Size = UDim2.new(0, 260, 0, 16)
+sub.Position = UDim2.new(0, 76, 0.5, 14)
+sub.BackgroundTransparency = 1
+sub.Text = "brainrot tools"
+sub.TextColor3 = Color3.fromRGB(146, 140, 198)
+sub.TextSize = 13
+sub.Font = F2
+sub.TextXAlignment = Enum.TextXAlignment.Left
+sub.ZIndex = 404
+sub.Parent = Topbar
+
 local hidebtn = Instance.new("TextButton")
 hidebtn.Name = "hidebtn"
 hidebtn.AnchorPoint = Vector2.new(1, 0.5)
-hidebtn.Size = UDim2.new(0, 130, 0, 40)
+hidebtn.Size = UDim2.new(0, 122, 0, 40)
 hidebtn.Position = UDim2.new(1, -22, 0.5, 0)
 hidebtn.BackgroundTransparency = 1
 hidebtn.AutoButtonColor = false
@@ -201,44 +424,62 @@ hidebtn.TextXAlignment = Enum.TextXAlignment.Right
 hidebtn.ZIndex = 404
 hidebtn.Parent = Topbar
 
+-- little underline that wipes in from the right
+local hu = Instance.new("Frame")
+hu.AnchorPoint = Vector2.new(1, 0)
+hu.Size = UDim2.new(0, 0, 0, 2)
+hu.Position = UDim2.new(1, 0, 1, -6)
+hu.BackgroundColor3 = LILAC
+hu.BorderSizePixel = 0
+hu.ZIndex = 405
+hu.Parent = hidebtn
+corner(hu, 999)
+
 hidebtn.MouseEnter:Connect(function()
-	tw(hidebtn, SMOOTH, {TextColor3 = Color3.fromRGB(190, 185, 240)})
+	tw(hidebtn, SMOOTH, {TextColor3 = LILAC})
+	tw(hu, GLIDE, {Size = UDim2.new(0, 88, 0, 2)})
 end)
 hidebtn.MouseLeave:Connect(function()
 	tw(hidebtn, SMOOTH, {TextColor3 = WHITE})
+	tw(hu, SMOOTH, {Size = UDim2.new(0, 0, 0, 2)})
 end)
 
--- the model has no X, but main.lua wants one. tucking it next to
--- Hide UI, same flat look so it doesnt clash
+-- model has no X but main.lua wants one
 local closebtn = Instance.new("TextButton")
 closebtn.Name = "closebtn"
 closebtn.AnchorPoint = Vector2.new(1, 0.5)
 closebtn.Size = UDim2.new(0, 34, 0, 34)
-closebtn.Position = UDim2.new(1, -166, 0.5, 0)
+closebtn.Position = UDim2.new(1, -158, 0.5, 0)
+closebtn.BackgroundColor3 = RED
 closebtn.BackgroundTransparency = 1
 closebtn.AutoButtonColor = false
 closebtn.Text = "X"
-closebtn.TextColor3 = Color3.fromRGB(198, 192, 236)
-closebtn.TextSize = 20
+closebtn.TextColor3 = Color3.fromRGB(190, 184, 232)
+closebtn.TextSize = 19
 closebtn.Font = F
 closebtn.ZIndex = 404
 closebtn.Parent = Topbar
+corner(closebtn, 8)
 
 closebtn.MouseEnter:Connect(function()
-	tw(closebtn, SMOOTH, {TextColor3 = RED})
+	tw(closebtn, SMOOTH, {TextColor3 = WHITE, BackgroundTransparency = 0.25})
 end)
 closebtn.MouseLeave:Connect(function()
-	tw(closebtn, SMOOTH, {TextColor3 = Color3.fromRGB(198, 192, 236)})
+	tw(closebtn, SMOOTH, {
+		TextColor3 = Color3.fromRGB(190, 184, 232),
+		BackgroundTransparency = 1,
+	})
 end)
 
 --------------------------------------------------------------
--- tablist   (x 12..248 of the frame, 236 wide)
+-- tablist
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
-TabList.Size = UDim2.new(0, 236, 1, -100)
+TabList.Size = UDim2.new(0, 236, 1, -132)
 TabList.Position = UDim2.new(0, 12, 0, 87)
 TabList.BackgroundColor3 = BODY
+TabList.BackgroundTransparency = 0.06
 TabList.BorderSizePixel = 0
 TabList.ZIndex = 401
 TabList.Parent = MainFrame
@@ -251,24 +492,24 @@ tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 tabLayout.Parent = TabList
 
 local tabPad = Instance.new("UIPadding")
-tabPad.PaddingTop = UDim.new(0, 14)
+tabPad.PaddingTop = UDim.new(0, 13)
 tabPad.PaddingLeft = UDim.new(0, 10)
 tabPad.PaddingRight = UDim.new(0, 10)
 tabPad.Parent = TabList
 
--- little vector icon per tab, drawn with frames. beats hunting
--- down 5 asset ids and it matches the outline look of the model
+-- icons drawn out of frames. beats tracking down 5 asset ids and
+-- it matches the outline look of the model
 local function icon(parent, kind)
 	local box = Instance.new("Frame")
 	box.Name = "icon"
 	box.AnchorPoint = Vector2.new(0, 0.5)
 	box.Size = UDim2.new(0, 26, 0, 26)
-	box.Position = UDim2.new(0, 8, 0.5, 0)
+	box.Position = UDim2.new(0, 9, 0.5, 0)
 	box.BackgroundTransparency = 1
 	box.ZIndex = 406
 	box.Parent = parent
 
-	local function piece(w, h, x, y, rad, rot)
+	local function bit(w, h, x, y, rad, rot)
 		local f = Instance.new("Frame")
 		f.AnchorPoint = Vector2.new(0.5, 0.5)
 		f.Size = UDim2.new(0, w, 0, h)
@@ -282,56 +523,47 @@ local function icon(parent, kind)
 		return f
 	end
 
+	local function outline(w, h, x, y, rad, th)
+		local f = bit(w, h, x, y, rad)
+		f.BackgroundTransparency = 1
+		local s = Instance.new("UIStroke")
+		s.Thickness = th or 2
+		s.Color = WHITE
+		s.Parent = f
+		return f
+	end
+
 	if kind == "Home" then
-		piece(15, 2, 0, -6, 1, 45).Position = UDim2.new(0.5, -5, 0.5, -6)
-		piece(15, 2, 5, -6, 1, -45)
-		piece(2, 11, -7, 3, 1)
-		piece(2, 11, 7, 3, 1)
-		piece(16, 2, 0, 8, 1)
+		bit(15, 2, -5, -6, 1, 45)
+		bit(15, 2, 5, -6, 1, -45)
+		bit(2, 11, -7, 3, 1)
+		bit(2, 11, 7, 3, 1)
+		bit(16, 2, 0, 8, 1)
 	elseif kind == "Game" then
-		local pad = piece(22, 13, 0, 1, 5)
-		pad.BackgroundTransparency = 1
-		local s = Instance.new("UIStroke")
-		s.Thickness = 2
-		s.Color = WHITE
-		s.Parent = pad
-		piece(6, 2, -5, 1, 1)
-		piece(2, 6, -5, 1, 1)
-		piece(3, 3, 5, 1, 999)
+		outline(22, 14, 0, 1, 6)
+		bit(7, 2, -5, 1, 1)
+		bit(2, 7, -5, 1, 1)
+		bit(3, 3, 4, -1, 999)
+		bit(3, 3, 7, 3, 999)
 	elseif kind == "Gameslist" then
-		local bx = piece(20, 18, 0, 0, 4)
-		bx.BackgroundTransparency = 1
-		local s = Instance.new("UIStroke")
-		s.Thickness = 2
-		s.Color = WHITE
-		s.Parent = bx
+		outline(21, 19, 0, 0, 4)
 		for i = -1, 1 do
-			piece(2, 2, -5, i * 5, 999)
-			piece(8, 2, 2, i * 5, 1)
+			bit(3, 3, -5, i * 5, 999)
+			bit(8, 2, 3, i * 5, 1)
 		end
 	elseif kind == "Settings" then
-		local ring = piece(18, 18, 0, 0, 999)
-		ring.BackgroundTransparency = 1
-		local s = Instance.new("UIStroke")
-		s.Thickness = 3
-		s.Color = WHITE
-		s.Parent = ring
-		for i = 0, 3 do
-			piece(4, 4, 0, 0, 1, i * 45).Position =
-				UDim2.new(0.5, math.floor(math.cos(i * math.pi / 4) * 10),
-				          0.5, math.floor(math.sin(i * math.pi / 4) * 10))
+		outline(17, 17, 0, 0, 999, 3)
+		for i = 0, 5 do
+			local a = i * math.pi / 3
+			bit(5, 5, math.floor(math.cos(a) * 11), math.floor(math.sin(a) * 11), 1,
+				math.deg(a))
 		end
 	elseif kind == "Credits" then
-		local cup = piece(14, 12, 0, -3, 3)
-		cup.BackgroundTransparency = 1
-		local s = Instance.new("UIStroke")
-		s.Thickness = 2
-		s.Color = WHITE
-		s.Parent = cup
-		piece(2, 6, 0, 5, 1)
-		piece(10, 2, 0, 9, 1)
-		piece(4, 2, -8, -4, 1, 30)
-		piece(4, 2, 8, -4, 1, -30)
+		outline(15, 13, 0, -3, 3)
+		bit(2, 6, 0, 6, 1)
+		bit(11, 2, 0, 10, 1)
+		bit(5, 2, -9, -4, 1, 32)
+		bit(5, 2, 9, -4, 1, -32)
 	end
 
 	return box
@@ -341,18 +573,32 @@ local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
 	b.Size = UDim2.new(1, 0, 0, 52)
-	b.BackgroundColor3 = SEL
+	-- same colour as the panel behind it. main.lua flips this to
+	-- transparency 0 with no tween, so if it were a bright colour
+	-- youd see it pop. the visible highlight is the hl frame
+	b.BackgroundColor3 = BODY
 	b.BackgroundTransparency = 1
 	b.AutoButtonColor = false
 	b.Text = ""
 	b.BorderSizePixel = 0
+	b.ClipsDescendants = true
 	b.LayoutOrder = order
 	b.ZIndex = 404
 	b.Parent = TabList
 	corner(b, 8)
 
-	-- main.lua looks for a child called InnerShadow and pokes
-	-- BackgroundTransparency on it for the hover
+	local hl = Instance.new("Frame")
+	hl.Name = "hl"
+	hl.Size = UDim2.new(1, 0, 1, 0)
+	hl.BackgroundColor3 = SEL
+	hl.BackgroundTransparency = 1
+	hl.BorderSizePixel = 0
+	hl.ZIndex = 404
+	hl.Parent = b
+	corner(hl, 8)
+
+	-- main.lua pokes BackgroundTransparency on a child named
+	-- InnerShadow for the hover, so it has to exist
 	local ish = Instance.new("Frame")
 	ish.Name = "InnerShadow"
 	ish.Size = UDim2.new(1, 0, 1, 0)
@@ -363,26 +609,68 @@ local function newTab(name, label, order)
 	ish.Parent = b
 	corner(ish, 8)
 
-	icon(b, name)
+	-- the bar that slides in on the left of the active one
+	local mark = Instance.new("Frame")
+	mark.Name = "mark"
+	mark.AnchorPoint = Vector2.new(0, 0.5)
+	mark.Size = UDim2.new(0, 3, 0, 0)
+	mark.Position = UDim2.new(0, 3, 0.5, 0)
+	mark.BackgroundColor3 = LILAC
+	mark.BorderSizePixel = 0
+	mark.ZIndex = 407
+	mark.Parent = b
+	corner(mark, 999)
+
+	local ic = icon(b, name)
+	local icScale = Instance.new("UIScale")
+	icScale.Parent = ic
 
 	local t = Instance.new("TextLabel")
 	t.Name = "label"
-	t.Size = UDim2.new(1, -44, 1, 0)
-	t.Position = UDim2.new(0, 42, 0, 0)
+	t.Size = UDim2.new(1, -46, 1, 0)
+	t.Position = UDim2.new(0, 44, 0, 0)
 	t.BackgroundTransparency = 1
 	t.Text = label
-	t.TextColor3 = WHITE
+	t.TextColor3 = GRAY
 	t.TextSize = 22
 	t.Font = F
 	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.ZIndex = 406
 	t.Parent = b
 
-	-- main.lua only flips BackgroundTransparency, everything else
-	-- rides along from here
+	local active = false
+
+	b.MouseEnter:Connect(function()
+		if not active then
+			tw(hl, SMOOTH, {BackgroundTransparency = 0.75})
+			tw(t, SMOOTH, {TextColor3 = WHITE})
+		end
+		tw(icScale, BOUNCE, {Scale = 1.14})
+		tw(t, GLIDE, {Position = UDim2.new(0, 48, 0, 0)})
+	end)
+
+	b.MouseLeave:Connect(function()
+		if not active then
+			tw(hl, SMOOTH, {BackgroundTransparency = 1})
+			tw(t, SMOOTH, {TextColor3 = GRAY})
+		end
+		tw(icScale, SMOOTH, {Scale = 1})
+		tw(t, GLIDE, {Position = UDim2.new(0, 44, 0, 0)})
+	end)
+
+	-- main.lua only touches BackgroundTransparency, so everything
+	-- else rides along off this signal
 	b:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
-		local on = b.BackgroundTransparency < 0.5
-		tw(t, SMOOTH, {TextColor3 = on and WHITE or GRAY})
+		active = b.BackgroundTransparency < 0.5
+		tw(hl, GLIDE, {BackgroundTransparency = active and 0 or 1})
+		tw(t, SMOOTH, {TextColor3 = active and WHITE or GRAY})
+		tw(mark, active and BOUNCE or SMOOTH,
+			{Size = UDim2.new(0, 3, 0, active and 22 or 0)})
+		if active then
+			icScale.Scale = 0.8
+			tw(icScale, TweenInfo.new(0.42, Enum.EasingStyle.Back,
+				Enum.EasingDirection.Out), {Scale = 1})
+		end
 	end)
 
 	return b
@@ -395,13 +683,14 @@ newTab("Settings",  "Settings",   4)
 newTab("Credits",   "Credits",    5)
 
 --------------------------------------------------------------
--- sectionContainers   (the big panel on the right)
+-- sectionContainers
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
-SectionContainers.Size = UDim2.new(1, -272, 1, -100)
+SectionContainers.Size = UDim2.new(1, -272, 1, -132)
 SectionContainers.Position = UDim2.new(0, 260, 0, 87)
 SectionContainers.BackgroundColor3 = BODY
+SectionContainers.BackgroundTransparency = 0.06
 SectionContainers.BorderSizePixel = 0
 SectionContainers.ClipsDescendants = true
 SectionContainers.ZIndex = 401
@@ -445,8 +734,96 @@ newSection("settingsFrame")
 newSection("creditsFrame")
 
 --------------------------------------------------------------
--- home labels
--- main.lua gsubs "redacted" on these, so they must exist
+-- footer. version on the left, live fps on the right
+--------------------------------------------------------------
+local footer = Instance.new("Frame")
+footer.Name = "footer"
+footer.AnchorPoint = Vector2.new(0.5, 1)
+footer.Size = UDim2.new(1, -24, 0, 30)
+footer.Position = UDim2.new(0.5, 0, 1, -8)
+footer.BackgroundColor3 = BAR
+footer.BackgroundTransparency = 0.22
+footer.BorderSizePixel = 0
+footer.ZIndex = 401
+footer.Parent = MainFrame
+corner(footer, 8)
+
+local dot = Instance.new("Frame")
+dot.Name = "dot"
+dot.AnchorPoint = Vector2.new(0, 0.5)
+dot.Size = UDim2.new(0, 8, 0, 8)
+dot.Position = UDim2.new(0, 12, 0.5, 0)
+dot.BackgroundColor3 = GREEN
+dot.BorderSizePixel = 0
+dot.ZIndex = 403
+dot.Parent = footer
+corner(dot, 999)
+
+task.spawn(function()
+	while dot.Parent do
+		tw(dot, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+			{BackgroundTransparency = 0.62})
+		task.wait(1.15)
+		tw(dot, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+			{BackgroundTransparency = 0})
+		task.wait(1.15)
+	end
+end)
+
+local fnote = Instance.new("TextLabel")
+fnote.Name = "fnote"
+fnote.AnchorPoint = Vector2.new(0, 0.5)
+fnote.Size = UDim2.new(0, 320, 1, 0)
+fnote.Position = UDim2.new(0, 26, 0.5, 0)
+fnote.BackgroundTransparency = 1
+fnote.Text = "loaded hub  -  right shift to hide"
+fnote.TextColor3 = Color3.fromRGB(160, 154, 208)
+fnote.TextSize = 13
+fnote.Font = F2
+fnote.TextXAlignment = Enum.TextXAlignment.Left
+fnote.ZIndex = 403
+fnote.Parent = footer
+
+local fps = Instance.new("TextLabel")
+fps.Name = "fps"
+fps.AnchorPoint = Vector2.new(1, 0.5)
+fps.Size = UDim2.new(0, 120, 1, 0)
+fps.Position = UDim2.new(1, -12, 0.5, 0)
+fps.BackgroundTransparency = 1
+fps.Text = "-- fps"
+fps.TextColor3 = Color3.fromRGB(160, 154, 208)
+fps.TextSize = 13
+fps.Font = F2
+fps.TextXAlignment = Enum.TextXAlignment.Right
+fps.ZIndex = 403
+fps.Parent = footer
+
+-- counting frames over one second, dividing 1/dt jumps around too much
+task.spawn(function()
+	local frames = 0
+	local last = os.clock()
+	local conn
+	conn = runservice.Heartbeat:Connect(function()
+		frames = frames + 1
+		local now = os.clock()
+		if now - last >= 1 then
+			if not fps.Parent then
+				conn:Disconnect()
+				return
+			end
+			local n = math.floor(frames / (now - last) + 0.5)
+			fps.Text = n .. " fps"
+			fps.TextColor3 = n >= 45 and Color3.fromRGB(150, 200, 130)
+				or (n >= 25 and Color3.fromRGB(214, 178, 108)
+				or Color3.fromRGB(210, 120, 110))
+			frames = 0
+			last = now
+		end
+	end)
+end)
+
+--------------------------------------------------------------
+-- home labels. main.lua gsubs "redacted" on these so they must exist
 --------------------------------------------------------------
 local home = SectionContainers.homeframe
 
@@ -472,7 +849,7 @@ local function homeLabel(name, text, col, size, order)
 	return l
 end
 
-local head = homeLabel("ythead", "brainrot hub", WHITE, 24, 1)
+local head = homeLabel("ythead", "loaded hub", WHITE, 26, 1)
 head.Font = F
 
 homeLabel("welcomeLabel", "open the Game tab for the current game options.", GRAY, 15, 2)
@@ -493,8 +870,21 @@ local sep2 = sep:Clone()
 sep2.LayoutOrder = 7
 sep2.Parent = home
 
-homeLabel("discan",    "discord: redacted", Color3.fromRGB(178, 172, 232), 15, 8)
+homeLabel("discan",    "discord: redacted", LILAC, 15, 8)
 homeLabel("bugsLabel", "bugs? report them at redacted", GRAY, 14, 9)
+
+-- fade the home rows in one after another, looks nicer than
+-- everything appearing at once
+task.spawn(function()
+	for _, l in ipairs(home:GetChildren()) do
+		if l:IsA("TextLabel") then
+			local keep = l.TextTransparency
+			l.TextTransparency = 1
+			task.wait(0.045)
+			tw(l, TweenInfo.new(0.3), {TextTransparency = keep})
+		end
+	end
+end)
 
 --------------------------------------------------------------
 return ui
