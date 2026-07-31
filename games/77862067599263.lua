@@ -1,11 +1,148 @@
---// Obby as a Brainrot (OG Brainrot Farm)
---// Note: Server validation only accepts OG rarity brainrots.
+--// Obby as a Brainrot (OG Brainrot Farm - Roblox Stud UI Pack Theme)
+--// Designed with the Roblox Stud UI Pack style (Dark Studded Grid, Glossy Gradients, Black Outlines)
 
 return function(king, cfg, el)
 	local players = game:GetService("Players")
 	local rs      = game:GetService("ReplicatedStorage")
 	local uis     = game:GetService("UserInputService")
 	local plr     = players.LocalPlayer
+
+	----------------------------------------------------------
+	-- STUD UI PACK STYLER & THEME ENGINE
+	----------------------------------------------------------
+	local function applyStudTheme(container)
+		if not container or typeof(container) ~= "Instance" then return end
+
+		local function styleElement(inst)
+			if not inst or not inst.Parent then return end
+
+			-- Helper: Ensure thick black border
+			local function ensureStroke(parent, color, thickness)
+				local stroke = parent:FindFirstChild("StudUIStroke")
+				if not stroke then
+					stroke = Instance.new("UIStroke")
+					stroke.Name = "StudUIStroke"
+					stroke.Parent = parent
+				end
+				stroke.Color = color or Color3.fromRGB(0, 0, 0)
+				stroke.Thickness = thickness or 2
+				stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				return stroke
+			end
+
+			-- Helper: Ensure rounded corner
+			local function ensureCorner(parent, radius)
+				local corner = parent:FindFirstChild("StudUICorner")
+				if not corner then
+					corner = Instance.new("UICorner")
+					corner.Name = "StudUICorner"
+					corner.Parent = parent
+				end
+				corner.CornerRadius = UDim.new(0, radius or 6)
+				return corner
+			end
+
+			-- Helper: Ensure glossy metallic gradient
+			local function ensureGradient(parent, c1, c2, rotation)
+				local grad = parent:FindFirstChild("StudUIGradient")
+				if not grad then
+					grad = Instance.new("UIGradient")
+					grad.Name = "StudUIGradient"
+					grad.Parent = parent
+				end
+				grad.Color = ColorSequence.new(c1, c2)
+				grad.Rotation = rotation or 90
+				return grad
+			end
+
+			-- 1. Main Frame / Container styling (Dark Studded Theme)
+			if inst:IsA("Frame") or inst:IsA("ScrollingFrame") then
+				if inst == container or inst.Parent == container or inst.Name:lower():find("window") or inst.Name:lower():find("main") then
+					inst.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+					ensureCorner(inst, 8)
+					ensureStroke(inst, Color3.fromRGB(0, 0, 0), 3)
+
+					-- Add dark studded grid background texture
+					if not inst:FindFirstChild("StudBackgroundTexture") then
+						local bgStuds = Instance.new("ImageLabel")
+						bgStuds.Name = "StudBackgroundTexture"
+						bgStuds.Size = UDim2.new(1, 0, 1, 0)
+						bgStuds.Position = UDim2.new(0, 0, 0, 0)
+						bgStuds.BackgroundTransparency = 1
+						bgStuds.Image = "rbxassetid://9826359020" -- Dark studded grid texture
+						bgStuds.ImageColor3 = Color3.fromRGB(35, 35, 45)
+						bgStuds.ImageTransparency = 0.7
+						bgStuds.ScaleType = Enum.ScaleType.Tile
+						bgStuds.TileSize = UDim2.new(0, 24, 0, 24)
+						bgStuds.ZIndex = 0
+						bgStuds.Parent = inst
+					end
+				else
+					-- Inner rows / cards
+					if not inst:FindFirstChild("StudBackgroundTexture") then
+						inst.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+						ensureCorner(inst, 6)
+						ensureStroke(inst, Color3.fromRGB(0, 0, 0), 2)
+					end
+				end
+			end
+
+			-- 2. Typography (Bold Cartoon Font with Black Outline)
+			if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then
+				inst.Font = Enum.Font.FredokaOne
+
+				local textStroke = inst:FindFirstChild("StudTextStroke")
+				if not textStroke then
+					textStroke = Instance.new("UIStroke")
+					textStroke.Name = "StudTextStroke"
+					textStroke.Parent = inst
+				end
+				textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+				textStroke.Color = Color3.fromRGB(0, 0, 0)
+				textStroke.Thickness = 2
+			end
+
+			-- 3. Buttons (Gold / Blue Glossy Metallic Gradient)
+			if inst:IsA("TextButton") or inst:IsA("ImageButton") then
+				ensureCorner(inst, 6)
+				ensureStroke(inst, Color3.fromRGB(0, 0, 0), 2)
+
+				-- Red Close button
+				if inst.Name:lower():find("close") or inst.Text == "X" or inst.Text == "x" then
+					inst.BackgroundColor3 = Color3.fromRGB(255, 50, 60)
+					ensureGradient(inst, Color3.fromRGB(255, 70, 70), Color3.fromRGB(170, 10, 20), 90)
+				else
+					-- Standard Action Button (Glossy Gold / Yellow Gradient)
+					if not inst:FindFirstChild("StudUIGradient") then
+						inst.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+						ensureGradient(inst, Color3.fromRGB(255, 225, 40), Color3.fromRGB(180, 135, 0), 90)
+					end
+				end
+				inst.TextColor3 = Color3.fromRGB(255, 255, 255)
+			end
+
+			-- 4. TextBoxes (Cyan / Blue Glossy Inputs)
+			if inst:IsA("TextBox") then
+				inst.BackgroundColor3 = Color3.fromRGB(0, 150, 230)
+				ensureCorner(inst, 6)
+				ensureStroke(inst, Color3.fromRGB(0, 0, 0), 2)
+				ensureGradient(inst, Color3.fromRGB(0, 185, 255), Color3.fromRGB(0, 95, 190), 90)
+				inst.TextColor3 = Color3.fromRGB(255, 255, 255)
+			end
+		end
+
+		-- Apply styling to container and all descendants
+		pcall(function()
+			styleElement(container)
+			if container.Parent then styleElement(container.Parent) end
+			for _, desc in ipairs(container:GetDescendants()) do
+				styleElement(desc)
+			end
+		end)
+
+		-- Auto-style any new UI elements created dynamically
+		container.DescendantAdded:Connect(styleElement)
+	end
 
 	----------------------------------------------------------
 	-- CONFIG
@@ -59,7 +196,7 @@ return function(king, cfg, el)
 	-- UI INTERFACE
 	----------------------------------------------------------
 	el:Header(king, "og brainrot farm")
-	el:Label(king, "INFO: Only OG Brainrots are supported by game server", Color3.fromRGB(228, 158, 56), 12)
+	el:Label(king, "INFO: Only OG Brainrots are supported by game server", Color3.fromRGB(255, 220, 0), 12)
 
 	local lblState  = el:Stat(king, "state", "idle", "dim")
 	local lblCount  = el:Stat(king, "caught", "0", "gold")
@@ -310,4 +447,11 @@ return function(king, cfg, el)
 	end)
 
 	el:Label(king, "F = toggle auto farm on / off", Color3.fromRGB(120, 110, 146), 13)
+
+	----------------------------------------------------------
+	-- APPLY STUD UI PACK STYLING TO ENTIRE GUI
+	----------------------------------------------------------
+	task.defer(function()
+		applyStudTheme(king)
+	end)
 end
