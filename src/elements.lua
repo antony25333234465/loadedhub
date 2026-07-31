@@ -61,7 +61,6 @@ local function stroke(p, gr, col)
 	local s = Instance.new("UIStroke")
 	s.Thickness = gr or 2
 	s.Color = col or EDGE
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = p
 	return s
 end
@@ -116,7 +115,7 @@ local function colOf(kind)
 end
 
 --------------------------------------------------------------
--- 3D BUTTON (CLEAN NO STUDS)
+-- 3D STUD BUTTON (CLEAN NO STUDS)
 --------------------------------------------------------------
 local SINK = 4
 local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
@@ -966,4 +965,3 @@ function stuff:CredPerson(king, txt)
 end
 
 return stuff
-,path:/home/user/elements.lua}
