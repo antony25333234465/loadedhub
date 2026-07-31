@@ -1,5 +1,5 @@
---// Obby as a Brainrot (Universal Farm)
---// Soporta todos los Brainrots y Rarities (Common, Uncommon, Rare, Epic, Legendary, Mythic, Secret, Celestial, Cosmic, Hacker, OG)
+--// Obby as a Brainrot (Universal Farm - Funciona para todas las rarezas)
+--// Compatible con Common, Uncommon, Rare, Epic, Legendary, Mythic, Secret, Celestial, Cosmic, Hacker y OG.
 
 return function(king, cfg, el)
 	local players = game:GetService("Players")
@@ -8,140 +8,140 @@ return function(king, cfg, el)
 	local plr     = players.LocalPlayer
 
 	----------------------------------------------------------
-	-- BASE DE DATOS LOCAL DE ITEMS (63 BRAINROTS DEL GAME)
+	-- BASE DE DATOS LOCAL (Extraída del Dump de ItemConfigurations)
 	----------------------------------------------------------
 	local ITEM_DATABASE = {
 		-- Common
-		["Noobini Pizzanini"]       = "Common",
-		["Boneca Ambalabu"]         = "Common",
-		["Tim Cheese"]              = "Common",
-		["Br Br Batabim"]           = "Common",
-		["Brri Brri Bicus"]         = "Common",
-		["Cacto Hipopotamo"]        = "Common",
-		["Tric Trac Baraboom"]      = "Common",
-		["Trippi Troppi"]           = "Common",
-		["Bandito Bobritto"]        = "Common",
+		["Noobini Pizzanini"]        = "Common",
+		["Boneca Ambalabu"]          = "Common",
+		["Tim Cheese"]               = "Common",
+		["Br Br Batabim"]            = "Common",
+		["Brri Brri Bicus"]          = "Common",
+		["Cacto Hipopotamo"]         = "Common",
+		["Tric Trac Baraboom"]       = "Common",
+		["Trippi Troppi"]            = "Common",
+		["Bandito Bobritto"]         = "Common",
 		-- Uncommon
-		["Fluri Flura"]             = "Uncommon",
-		["Gangster Footera"]        = "Uncommon",
-		["Glorbo Fruitto Drillo"]   = "Uncommon",
-		["Avocadini Buffo"]         = "Uncommon",
-		["Salamino Penguino"]       = "Uncommon",
-		["Kiwi Pipi"]               = "Uncommon",
-		["Lirili Larila"]           = "Uncommon",
-		["Svinino"]                 = "Uncommon",
+		["Fluri Flura"]              = "Uncommon",
+		["Gangster Footera"]         = "Uncommon",
+		["Glorbo Fruitto Drillo"]    = "Uncommon",
+		["Avocadini Buffo"]          = "Uncommon",
+		["Salamino Penguino"]        = "Uncommon",
+		["Kiwi Pipi"]                = "Uncommon",
+		["Lirili Larila"]            = "Uncommon",
+		["Svinino"]                  = "Uncommon",
 		-- Rare
-		["Tung Tung Tung Sahur"]    = "Rare",
-		["Talpa Di Ferro"]          = "Rare",
-		["Talpa Di Ferro Triple"]   = "Rare",
-		["Frigo Camelo"]            = "Rare",
-		["Lioneli Cactusini"]       = "Rare",
-		["Trulimero Truli"]         = "Rare",
-		["Tu Tu Tu Sahur"]          = "Rare",
+		["Tung Tung Tung Sahur"]     = "Rare",
+		["Talpa Di Ferro"]           = "Rare",
+		["Talpa Di Ferro Triple"]    = "Rare",
+		["Frigo Camelo"]             = "Rare",
+		["Lioneli Cactusini"]        = "Rare",
+		["Trulimero Truli"]          = "Rare",
+		["Tu Tu Tu Sahur"]           = "Rare",
 		-- Epic
-		["Octopus"]                 = "Epic",
-		["Cameloni Meleloni"]       = "Epic",
-		["Cappoccino Assassino"]    = "Epic",
-		["Chimpanzini Bananini"]    = "Epic",
-		["Cocofanto Elefanto"]      = "Epic",
-		["Dolphinita"]              = "Epic",
+		["Octopus"]                  = "Epic",
+		["Cameloni Meleloni"]        = "Epic",
+		["Cappoccino Assassino"]     = "Epic",
+		["Chimpanzini Bananini"]     = "Epic",
+		["Cocofanto Elefanto"]       = "Epic",
+		["Dolphinita"]               = "Epic",
 		-- Legendary
-		["Elefanto Frigo"]          = "Legendary",
-		["Gorillo Watermelondrillo"]= "Legendary",
-		["Melon Otter"]             = "Legendary",
-		["Avocadini Antilopini"]    = "Legendary",
-		["Ballerina Cappuccina"]    = "Legendary",
-		["Bambini Crostini"]        = "Legendary",
-		["Udin Din Din Dun"]        = "Legendary",
+		["Elefanto Frigo"]           = "Legendary",
+		["Gorillo Watermelondrillo"] = "Legendary",
+		["Melon Otter"]              = "Legendary",
+		["Avocadini Antilopini"]     = "Legendary",
+		["Ballerina Cappuccina"]     = "Legendary",
+		["Bambini Crostini"]         = "Legendary",
+		["Udin Din Din Dun"]         = "Legendary",
 		-- Mythic
-		["Tralalero Tralala"]       = "Mythic",
-		["Bombardini Crocodilo"]    = "Mythic",
-		["Bombardini Gusini"]       = "Mythic",
-		["Blackhole Goat"]          = "Mythic",
-		["Garamararamararaman"]     = "Mythic",
-		["To To To Sahur"]          = "Mythic",
-		["Orangutini Ananasini"]    = "Mythic",
-		["Alessio"]                 = "Mythic",
-		["Corn Sahur"]              = "Mythic",
+		["Tralalero Tralala"]        = "Mythic",
+		["Bombardini Crocodilo"]     = "Mythic",
+		["Bombardini Gusini"]        = "Mythic",
+		["Blackhole Goat"]           = "Mythic",
+		["Garamararamararaman"]      = "Mythic",
+		["To To To Sahur"]           = "Mythic",
+		["Orangutini Ananasini"]     = "Mythic",
+		["Alessio"]                  = "Mythic",
+		["Corn Sahur"]               = "Mythic",
 		-- Secret
-		["Torrtuginni Dragonfrutini"]= "Secret",
+		["Torrtuginni Dragonfrutini"] = "Secret",
 		["La Vacca Saturno Saturnita"]= "Secret",
-		["Los Tralaleritos"]        = "Secret",
-		["Stoppo Luminino"]         = "Secret",
-		["Madung"]                  = "Secret",
-		["Job Application"]         = "Secret",
-		["Las Vaquitas Saturnitas"]  = "Secret",
+		["Los Tralaleritos"]         = "Secret",
+		["Stoppo Luminino"]          = "Secret",
+		["Madung"]                   = "Secret",
+		["Job Application"]          = "Secret",
+		["Las Vaquitas Saturnitas"]   = "Secret",
 		-- Celestial
-		["Waterdino"]               = "Celestial",
-		["Calculino"]               = "Celestial",
-		["Mangolini Parrocini"]     = "Celestial",
-		["Bisonte Giuppitere"]      = "Celestial",
-		["Castlino Fortini"]        = "Celestial",
-		["67"]                      = "Celestial",
+		["Waterdino"]                = "Celestial",
+		["Calculino"]                = "Celestial",
+		["Mangolini Parrocini"]      = "Celestial",
+		["Bisonte Giuppitere"]       = "Celestial",
+		["Castlino Fortini"]         = "Celestial",
+		["67"]                       = "Celestial",
 		-- Cosmic
-		["Cappuccino Clownino"]     = "Cosmic",
-		["Swag Soda"]               = "Cosmic",
-		["Chillin' Chilli"]         = "Cosmic",
-		["Burguro"]                 = "Cosmic",
-		["Smurf Cat"]               = "Cosmic",
+		["Cappuccino Clownino"]      = "Cosmic",
+		["Swag Soda"]                = "Cosmic",
+		["Chillin' Chilli"]          = "Cosmic",
+		["Burguro"]                  = "Cosmic",
+		["Smurf Cat"]                = "Cosmic",
 		-- Hacker
-		["Spaghetti Tualetti"]      = "Hacker",
-		["Nuclearo Dinossauro"]     = "Hacker",
-		["Rexosaurus"]              = "Hacker",
-		["Tic Tac Sahur"]           = "Hacker",
-		["Tuff Toucan"]             = "Hacker",
+		["Spaghetti Tualetti"]       = "Hacker",
+		["Nuclearo Dinossauro"]      = "Hacker",
+		["Rexosaurus"]               = "Hacker",
+		["Tic Tac Sahur"]            = "Hacker",
+		["Tuff Toucan"]              = "Hacker",
 		-- OG
-		["Gattatino Nyanino"]       = "OG",
-		["Strawberry Elefant"]      = "OG",
-		["Skibi Toilet"]            = "OG",
-		["Dragon Cannelloni"]       = "OG",
-		["Meowl"]                   = "OG",
+		["Gattatino Nyanino"]        = "OG",
+		["Strawberry Elefant"]       = "OG",
+		["Skibi Toilet"]             = "OG",
+		["Dragon Cannelloni"]        = "OG",
+		["Meowl"]                    = "OG",
 	}
 
 	----------------------------------------------------------
-	-- FUNCIÓN: OBTENER RAREZA Y BLOQUE DINÁMICOS
+	-- FUNCIÓN: OBTENER RAREZA
 	----------------------------------------------------------
-	local function getItemInfo(itemName)
-		-- 1. Intentar leer desde ReplicatedStorage del juego
+	local function getItemRarity(itemName)
+		-- 1. Intentar leer directo de ReplicatedStorage en ejecución
 		local modules = rs:FindFirstChild("Modules")
 		if modules then
 			local itemConfigModule = modules:FindFirstChild("ItemConfigurations")
 			if itemConfigModule then
 				local ok, itemConfig = pcall(require, itemConfigModule)
-				if ok and itemConfig and itemConfig.GetItemData then
-					local data = itemConfig.GetItemData(itemName)
-					if data and data.Rarity then
-						local rName = data.Rarity
-						local bName = rName .. " Lucky Block"
-						return rName, bName
+				if ok and itemConfig then
+					if itemConfig.GetItemData then
+						local data = itemConfig.GetItemData(itemName)
+						if data and data.Rarity then return data.Rarity end
+					elseif itemConfig.Items and itemConfig.Items[itemName] then
+						local data = itemConfig.Items[itemName]
+						if data and data.Rarity then return data.Rarity end
 					end
 				end
 			end
 		end
 
-		-- 2. Base de datos incorporada
-		local localRarity = ITEM_DATABASE[itemName]
-		if localRarity then
-			return localRarity, localRarity .. " Lucky Block"
+		-- 2. Fallback a la base de datos local
+		if ITEM_DATABASE[itemName] then
+			return ITEM_DATABASE[itemName]
 		end
 
-		-- 3. Fallback por defecto
-		return "Celestial", "Celestial Lucky Block"
+		return "Celestial"
 	end
 
-	local initialRarity, initialBlock = getItemInfo("67")
+	----------------------------------------------------------
+	-- CONFIG INICIAL (Target predeterminado "67")
+	----------------------------------------------------------
+	local initialTarget = "67"
+	local initialRarity = getItemRarity(initialTarget)
 
-	----------------------------------------------------------
-	-- CONFIG INICIAL
-	----------------------------------------------------------
 	local CONFIG = {
-		TargetName  = "67",
+		TargetName  = initialTarget,
 		LandingPos  = Vector3.new(4, -99, 4514),
 		TeleportPos = Vector3.new(8, 21, -558),
 		PrePos      = Vector3.new(9, 19, -493),
 		Mutation    = "Normal",
 		Rarity      = initialRarity,
-		BlockName   = initialBlock,
+		BlockName   = "Uncommon Lucky Block", -- Mantiene el bloque válido del juego
 		Power       = 10.642112568062,
 	}
 
@@ -186,7 +186,6 @@ return function(king, cfg, el)
 	local lblCount  = el:Stat(king, "caught", "0", "gold")
 	local lblTarget = el:Stat(king, "target", CONFIG.TargetName, "loot")
 	local lblRarity = el:Stat(king, "rarity", CONFIG.Rarity, "loot")
-	local lblBlock  = el:Stat(king, "block", CONFIG.BlockName, "loot")
 
 	----------------------------------------------------------
 	-- STATE
@@ -208,19 +207,19 @@ return function(king, cfg, el)
 	----------------------------------------------------------
 	-- DISPARO DE REMOTES
 	----------------------------------------------------------
-	local function triggerRemoteSequence()
+	local function triggerThrow()
 		tp(CONFIG.PrePos)
-		task.wait(0.2)
+		task.wait(0.25)
 		r.ZoneBat:FireServer(true)
-		task.wait(0.1)
+		task.wait(0.12)
 		r.Started:FireServer()
-		task.wait(0.1)
+		task.wait(0.12)
 		r.BatHit:FireServer(nil, false)
-		task.wait(0.1)
+		task.wait(0.12)
 		r.Cleanup:FireServer()
-		task.wait(0.1)
+		task.wait(0.12)
 
-		-- Payload totalmente alineado con la rareza y bloque correcto
+		-- Envia la información sincronizada con el servidor
 		r.Landed:FireServer({
 			LandingPosition = CONFIG.LandingPos,
 			ItemName        = CONFIG.TargetName,
@@ -231,24 +230,24 @@ return function(king, cfg, el)
 			Power           = CONFIG.Power,
 		})
 
-		task.wait(0.5)
+		task.wait(0.55)
 		tp(CONFIG.TeleportPos)
 	end
 
 	----------------------------------------------------------
-	-- LOOP PRINCIPAL
+	-- LOOP DE FARMING
 	----------------------------------------------------------
 	local function loop(mine)
 		while farming and gen == mine do
 			local ok, err = pcall(function()
-				triggerRemoteSequence()
+				triggerThrow()
 
 				count = count + 1
 				lblCount.Text = tostring(count)
 				setState("caught!", "ok")
 
 				if count % 10 == 0 then
-					el:Notify("streak!", "caught " .. count .. "x " .. CONFIG.TargetName .. " [" .. CONFIG.Rarity .. "]", "ok", 3.4)
+					el:Notify("streak!", "caught " .. count .. "x " .. CONFIG.TargetName .. " (" .. CONFIG.Rarity .. ")", "ok", 3.4)
 				end
 				task.wait(0.4)
 				if farming and gen == mine then setState("farming", "warn") end
@@ -291,9 +290,9 @@ return function(king, cfg, el)
 	end)
 
 	el:Button("test single throw", king, function()
-		local ok, err = pcall(triggerRemoteSequence)
+		local ok, err = pcall(triggerThrow)
 		if ok then
-			el:Notify("test fired", "sent " .. CONFIG.TargetName .. " (" .. CONFIG.Rarity .. " / " .. CONFIG.BlockName .. ")", "ok", 2.5)
+			el:Notify("test fired", "sent " .. CONFIG.TargetName .. " (" .. CONFIG.Rarity .. ")", "ok", 2.5)
 		else
 			el:Notify("test failed", tostring(err), "err", 3)
 		end
@@ -310,7 +309,7 @@ return function(king, cfg, el)
 	end)
 
 	----------------------------------------------------------
-	-- TARGET Y PARÁMETROS
+	-- TARGET Y CONFIGURACIÓN
 	----------------------------------------------------------
 	el:Divider(king)
 	el:Header(king, "target settings")
@@ -320,28 +319,25 @@ return function(king, cfg, el)
 		CONFIG.TargetName = txt
 		lblTarget.Text = txt
 
-		-- Sincronización automática de Rarity y BlockName
-		local autoRarity, autoBlock = getItemInfo(txt)
+		-- Detecta la rareza correcta para este Brainrot
+		local autoRarity = getItemRarity(txt)
 		CONFIG.Rarity = autoRarity
-		CONFIG.BlockName = autoBlock
 		lblRarity.Text = autoRarity
-		lblBlock.Text = autoBlock
 
-		el:Notify("target changed", txt .. " -> " .. autoRarity .. " (" .. autoBlock .. ")", "ok", 2.5)
-	end)
-
-	el:Textbox("Block Name", king, CONFIG.BlockName, function(txt)
-		if txt == "" then return end
-		CONFIG.BlockName = txt
-		lblBlock.Text = txt
-		el:Notify("block set", txt, "ok", 2)
+		el:Notify("target changed", txt .. " -> " .. autoRarity, "ok", 2.5)
 	end)
 
 	el:Textbox("Rarity Override", king, CONFIG.Rarity, function(txt)
 		if txt == "" then return end
 		CONFIG.Rarity = txt
 		lblRarity.Text = txt
-		el:Notify("rarity set", txt, "ok", 2)
+		el:Notify("rarity forced", txt, "ok", 2)
+	end)
+
+	el:Textbox("Block Name", king, CONFIG.BlockName, function(txt)
+		if txt == "" then return end
+		CONFIG.BlockName = txt
+		el:Notify("block set", txt, "ok", 2)
 	end)
 
 	el:Textbox("Mutation", king, CONFIG.Mutation, function(txt)
@@ -351,7 +347,7 @@ return function(king, cfg, el)
 	end)
 
 	----------------------------------------------------------
-	-- TELEPORTS Y MANUAL
+	-- MANUAL TPs
 	----------------------------------------------------------
 	el:Divider(king)
 	el:Header(king, "manual tp")
