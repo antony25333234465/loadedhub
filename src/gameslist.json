@@ -1,5 +1,6 @@
 [
-  { "game": "Cut Grass for Brainrots", "id": "97365843755210", "status": "🟢" },
-  { "game": "Obby as a Brainrot",      "id": "77862067599263", "status": "🟢" }
-  { "game": "Scary Shawarma Kiosk",      "id": "137826330724902", "status": "🟢" }
+  { "game": "Cut Grass for Brainrots",           "id": "97365843755210",  "status": "🟢" },
+  { "game": "Obby as a Brainrot",                "id": "77862067599263",  "status": "🟢" },
+  { "game": "Scary Shawarma Kiosk",              "id": "137826330724902", "status": "🟢" },
+  { "game": "Scary Shawarma (In Game 1 Player)", "id": "128001665358186", "status": "🟢" }
 ]
