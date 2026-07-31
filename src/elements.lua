@@ -871,7 +871,7 @@ function stuff:addGame(king, gname, gstate, cb)
 	return newGame
 end
 
-function stuff:Searchbar(king, gameList)
+function stuff:Searchbar(king, gameList, onPick)
 	local sb = Instance.new("Frame")
 	sb.Name = "searchBar"
 	sb.Size = UDim2.new(1, -8, 0, 36)
@@ -902,6 +902,17 @@ function stuff:Searchbar(king, gameList)
 	local exservice
 	pcall(function() exservice = game:GetService("ExperienceService") end)
 
+	-- main.lua passes onPick so the search results teleport the exact
+	-- same way as the normal list does (queueing the script first).
+	-- without this the ones you find by searching jumped raw and the
+	-- hub didnt come back
+	local function jump(g)
+		if onPick then return onPick(g) end
+		pcall(function()
+			exservice:LaunchExperience({placeId = tonumber(g.id)})
+		end)
+	end
+
 	inp:GetPropertyChangedSignal("Text"):Connect(function()
 		for _, v in pairs(king:GetChildren()) do
 			if v.Name == "GameElement" then v:Destroy() end
@@ -909,9 +920,7 @@ function stuff:Searchbar(king, gameList)
 		for _, g in ipairs(gameList or {}) do
 			if g.game:lower():find(inp.Text:lower(), 1, true) then
 				stuff:addGame(king, g.game, g.status, function()
-					pcall(function()
-						exservice:LaunchExperience({placeId = tonumber(g.id)})
-					end)
+					jump(g)
 				end)
 			end
 		end
