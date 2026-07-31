@@ -20,7 +20,7 @@ local BODY   = Color3.fromRGB(79, 75, 164)   -- the big panels
 local BAR    = Color3.fromRGB(52, 49, 105)   -- topbar + every border
 local EDGE   = Color3.fromRGB(39, 37, 79)    -- outline round the whole thing
 
-local DEEP   = Color3.fromRGB(44, 41, 90)    -- backdrop, a hair off BAR
+local DEEP = Color3.fromRGB(79, 75, 164)    -- backdrop, a hair off BAR
 local HOVER  = Color3.fromRGB(92, 88, 180)
 local SEL    = Color3.fromRGB(103, 98, 196)
 local BOX    = Color3.fromRGB(68, 64, 142)
