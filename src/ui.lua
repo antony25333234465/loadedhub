@@ -1,37 +1,37 @@
 --// ui.lua
---// Stud UI Pack Edition - Figma Rays Header & Custom Vibrant Tab Colors
+--// Stud UI Pack - Ultimate Figma Rays Header & Sleek Vibrant Design
 --// Fully compatible with main.lua
 
 local tweenservice = game:GetService("TweenService")
 local runservice   = game:GetService("RunService")
 
 --------------------------------------------------------------
--- STUD UI PACK COLOR PALETTE & FONTS
+-- COLOR PALETTE & RICH VIBRANT THEMES
 --------------------------------------------------------------
-local MAIN_BG    = Color3.fromRGB(16, 16, 22)      -- Main Studded Frame BG
-local PANEL_BG   = Color3.fromRGB(24, 24, 32)      -- Inner Panels / Containers
+local MAIN_BG    = Color3.fromRGB(14, 14, 20)      -- Main Frame Deep Dark
+local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Dark Glass
 local BLACK_OUT  = Color3.fromRGB(0, 0, 0)         -- Thick Black UI Strokes
 local WHITE      = Color3.fromRGB(255, 255, 255)
-local LIGHT_GRAY = Color3.fromRGB(210, 215, 230)
-local MUTED_GRAY = Color3.fromRGB(150, 155, 175)
+local LIGHT_GRAY = Color3.fromRGB(215, 220, 235)
+local MUTED_GRAY = Color3.fromRGB(145, 150, 170)
 
--- Header Base Gradient
-local BLUE_TOP   = Color3.fromRGB(0, 180, 255)     -- Header Blue Top
-local BLUE_BOT   = Color3.fromRGB(0, 105, 210)     -- Header Blue Bottom
+-- Header Gradient Colors (Electric Blue)
+local BLUE_TOP   = Color3.fromRGB(0, 185, 255)     -- Header Top Blue
+local BLUE_BOT   = Color3.fromRGB(0, 95, 215)      -- Header Bottom Blue
 
--- Tab Theme Color Palette (Distinct Stud Colors for Each Tab)
+-- Vibrant Custom Color Themes for Each Tab
 local TAB_THEMES = {
-	Home      = { Top = Color3.fromRGB(0, 180, 255),   Bot = Color3.fromRGB(0, 105, 210),   Accent = Color3.fromRGB(0, 230, 255) },
-	Game      = { Top = Color3.fromRGB(0, 220, 110),   Bot = Color3.fromRGB(0, 130, 60),    Accent = Color3.fromRGB(50, 255, 140) },
-	Gameslist = { Top = Color3.fromRGB(255, 210, 20),   Bot = Color3.fromRGB(180, 130, 0),   Accent = Color3.fromRGB(255, 235, 80) },
-	Settings  = { Top = Color3.fromRGB(210, 50, 240),  Bot = Color3.fromRGB(120, 20, 150),  Accent = Color3.fromRGB(245, 120, 255) },
-	Credits   = { Top = Color3.fromRGB(255, 70, 80),   Bot = Color3.fromRGB(170, 20, 30),   Accent = Color3.fromRGB(255, 130, 140) },
+	Home      = { Top = Color3.fromRGB(0, 200, 255),   Bot = Color3.fromRGB(0, 100, 220),   Accent = Color3.fromRGB(0, 240, 255),  Glow = Color3.fromRGB(0, 180, 255) },
+	Game      = { Top = Color3.fromRGB(0, 230, 115),   Bot = Color3.fromRGB(0, 135, 60),    Accent = Color3.fromRGB(60, 255, 150), Glow = Color3.fromRGB(0, 230, 120) },
+	Gameslist = { Top = Color3.fromRGB(255, 200, 15),   Bot = Color3.fromRGB(190, 120, 0),   Accent = Color3.fromRGB(255, 235, 80), Glow = Color3.fromRGB(255, 190, 0) },
+	Settings  = { Top = Color3.fromRGB(224, 64, 251),  Bot = Color3.fromRGB(125, 25, 170),  Accent = Color3.fromRGB(250, 130, 255),Glow = Color3.fromRGB(210, 50, 240) },
+	Credits   = { Top = Color3.fromRGB(255, 75, 85),   Bot = Color3.fromRGB(180, 20, 30),   Accent = Color3.fromRGB(255, 140, 150),Glow = Color3.fromRGB(255, 60, 70) },
 }
 
-local TAB_INACT_1 = Color3.fromRGB(55, 55, 70)    -- Inactive Tab Top
-local TAB_INACT_2 = Color3.fromRGB(35, 35, 45)    -- Inactive Tab Bottom
-local RED_TOP    = Color3.fromRGB(255, 60, 70)     -- Close Button Red Top
-local RED_BOT    = Color3.fromRGB(180, 15, 25)     -- Close Button Red Bottom
+local TAB_INACT_1 = Color3.fromRGB(50, 50, 65)    -- Inactive Tab Top
+local TAB_INACT_2 = Color3.fromRGB(30, 30, 40)    -- Inactive Tab Bottom
+local RED_TOP    = Color3.fromRGB(255, 55, 65)     -- Close Button Red Top
+local RED_BOT    = Color3.fromRGB(175, 15, 25)     -- Close Button Red Bottom
 
 local F_STUD = Enum.Font.FredokaOne
 local F_SUB  = Enum.Font.FredokaOne
@@ -90,7 +90,7 @@ end
 local rng = Random.new(os.time() % 99991)
 
 --------------------------------------------------------------
--- STUDDED BACKGROUND PATTERN
+-- MAIN FRAME STUDDED BACKGROUND PATTERN (ONLY ON MAIN FRAME)
 --------------------------------------------------------------
 local function addStudBackground(parent)
 	local bg = Instance.new("Frame")
@@ -103,14 +103,14 @@ local function addStudBackground(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
-	-- Tiled studs texture overlay
+	-- Main background stud texture (only on main container)
 	local studs = Instance.new("ImageLabel")
 	studs.Name = "StudGridTexture"
 	studs.Size = UDim2.new(1, 0, 1, 0)
 	studs.BackgroundTransparency = 1
-	studs.Image = "rbxassetid://9826359020" -- Roblox stud grid texture
+	studs.Image = "rbxassetid://9826359020"
 	studs.ImageColor3 = Color3.fromRGB(45, 45, 60)
-	studs.ImageTransparency = 0.65
+	studs.ImageTransparency = 0.68
 	studs.ScaleType = Enum.ScaleType.Tile
 	studs.TileSize = UDim2.new(0, 24, 0, 24)
 	studs.ZIndex = 400
@@ -213,14 +213,14 @@ scMain.Parent = MainFrame
 tw(scMain, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 
 --------------------------------------------------------------
--- TOPBAR (FIGMA RAYS STYLE HEADER)
+-- TOPBAR (HEADER WITH FIGMA RAYS Strictly Behind Content & Text)
 --------------------------------------------------------------
 local Topbar = Instance.new("Frame")
 Topbar.Name = "TopBar"
 Topbar.Size = UDim2.new(1, 0, 0, 70)
 Topbar.BackgroundColor3 = BLUE_TOP
 Topbar.BorderSizePixel = 0
-Topbar.ClipsDescendants = true
+Topbar.ClipsDescendants = true -- STOPS RAYS FROM LEAKING OUTSIDE HEADER
 Topbar.ZIndex = 401
 Topbar.Parent = MainFrame
 
@@ -228,31 +228,31 @@ corner(Topbar, 8)
 stroke(Topbar, 3, BLACK_OUT)
 glossyGradient(Topbar, BLUE_TOP, BLUE_BOT, 90)
 
--- FIGMA LIGHT RAYS OVERLAY EFFECT
+-- FIGMA HIGH VISIBILITY RAYS OVERLAY (ZIndex = 402 - BEHIND TEXT AND BUTTONS)
 do
 	local raysOverlay = Instance.new("ImageLabel")
-	raysOverlay.Name = "RaysOverlay"
-	raysOverlay.Size = UDim2.new(1, 0, 1, 0)
-	raysOverlay.Position = UDim2.new(0, 0, 0, 0)
+	raysOverlay.Name = "FigmaRaysOverlay"
+	raysOverlay.Size = UDim2.new(1.2, 0, 1.4, 0)
+	raysOverlay.Position = UDim2.new(-0.1, 0, -0.2, 0)
 	raysOverlay.BackgroundTransparency = 1
-	raysOverlay.Image = "rbxassetid://10842502695" -- High quality Figma diagonal light rays
+	raysOverlay.Image = "rbxassetid://10842502695" -- Figma style diagonal rays
 	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	raysOverlay.ImageTransparency = 0.65
+	raysOverlay.ImageTransparency = 0.25 -- HIGH VISIBILITY RAYS
 	raysOverlay.ScaleType = Enum.ScaleType.Crop
-	raysOverlay.ZIndex = 402
+	raysOverlay.ZIndex = 402 -- Strictly behind badge, title, buttons
 	raysOverlay.Parent = Topbar
 
-	-- Additional procedural light ray beams
+	-- Floating ray beam accents
 	for i = 1, 3 do
 		local beam = Instance.new("Frame")
-		beam.Name = "RayBeam" .. i
+		beam.Name = "FigmaRayBeam" .. i
 		beam.AnchorPoint = Vector2.new(0.5, 0.5)
-		beam.Size = UDim2.new(0, i * 45 + 30, 2.5, 0)
-		beam.Position = UDim2.new(i * 0.28, 0, 0.5, 0)
+		beam.Size = UDim2.new(0, i * 50 + 40, 3, 0)
+		beam.Position = UDim2.new(i * 0.26, 0, 0.5, 0)
 		beam.BackgroundColor3 = WHITE
-		beam.BackgroundTransparency = 0.88
+		beam.BackgroundTransparency = 0.82
 		beam.BorderSizePixel = 0
-		beam.Rotation = -35
+		beam.Rotation = -32
 		beam.ZIndex = 402
 		beam.Parent = Topbar
 
@@ -260,19 +260,19 @@ do
 		bg.Rotation = 90
 		bg.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0.2),
+			NumberSequenceKeypoint.new(0.5, 0.15),
 			NumberSequenceKeypoint.new(1, 1),
 		})
 		bg.Parent = beam
 	end
 end
 
--- Sheen animation across header
+-- Sheen animation across header (ZIndex = 403)
 do
 	local sheen = Instance.new("Frame")
 	sheen.Name = "sheen"
-	sheen.Size = UDim2.new(0, 110, 2.5, 0)
-	sheen.Position = UDim2.new(0, -150, -0.5, 0)
+	sheen.Size = UDim2.new(0, 120, 2.5, 0)
+	sheen.Position = UDim2.new(0, -160, -0.5, 0)
 	sheen.BackgroundColor3 = WHITE
 	sheen.BackgroundTransparency = 0.85
 	sheen.BorderSizePixel = 0
@@ -283,14 +283,14 @@ do
 	task.spawn(function()
 		while sheen.Parent do
 			task.wait(rng:NextNumber(4, 7))
-			sheen.Position = UDim2.new(0, -150, -0.5, 0)
+			sheen.Position = UDim2.new(0, -160, -0.5, 0)
 			tw(sheen, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Position = UDim2.new(1, 170, -0.5, 0)})
+				{Position = UDim2.new(1, 180, -0.5, 0)})
 		end
 	end)
 end
 
--- Header Icon Box (White Stud Box)
+-- Header Icon Box (ZIndex = 405)
 local badge = Instance.new("Frame")
 badge.Name = "badge"
 badge.AnchorPoint = Vector2.new(0, 0.5)
@@ -298,7 +298,7 @@ badge.Size = UDim2.new(0, 44, 0, 44)
 badge.Position = UDim2.new(0, 14, 0.5, 0)
 badge.BackgroundColor3 = Color3.fromRGB(240, 245, 255)
 badge.BorderSizePixel = 0
-badge.ZIndex = 404
+badge.ZIndex = 405
 badge.Parent = Topbar
 
 corner(badge, 8)
@@ -313,11 +313,11 @@ badgeTxt.Text = "LH"
 badgeTxt.TextColor3 = Color3.fromRGB(0, 110, 210)
 badgeTxt.TextSize = 20
 badgeTxt.Font = F_STUD
-badgeTxt.ZIndex = 405
+badgeTxt.ZIndex = 406
 badgeTxt.Parent = badge
 textStroke(badgeTxt, 2, BLACK_OUT)
 
--- Header Title & Subtitle
+-- Header Title & Subtitle (ZIndex = 405)
 local title = Instance.new("TextLabel")
 title.Name = "title"
 title.AnchorPoint = Vector2.new(0, 0.5)
@@ -329,7 +329,7 @@ title.TextColor3 = WHITE
 title.TextSize = 24
 title.Font = F_STUD
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 404
+title.ZIndex = 405
 title.Parent = Topbar
 textStroke(title, 2.5, BLACK_OUT)
 
@@ -344,11 +344,11 @@ sub.TextColor3 = Color3.fromRGB(210, 240, 255)
 sub.TextSize = 13
 sub.Font = F_SUB
 sub.TextXAlignment = Enum.TextXAlignment.Left
-sub.ZIndex = 404
+sub.ZIndex = 405
 sub.Parent = Topbar
 textStroke(sub, 1.5, BLACK_OUT)
 
--- Hide UI Button
+-- Hide UI Button (ZIndex = 405)
 local hidebtn = Instance.new("TextButton")
 hidebtn.Name = "hidebtn"
 hidebtn.AnchorPoint = Vector2.new(1, 0.5)
@@ -360,7 +360,7 @@ hidebtn.Text = "Hide UI"
 hidebtn.TextColor3 = WHITE
 hidebtn.TextSize = 16
 hidebtn.Font = F_STUD
-hidebtn.ZIndex = 404
+hidebtn.ZIndex = 405
 hidebtn.Parent = Topbar
 
 corner(hidebtn, 6)
@@ -375,7 +375,7 @@ hidebtn.MouseLeave:Connect(function()
 	tw(hidebtn, SMOOTH, {BackgroundColor3 = Color3.fromRGB(0, 130, 220)})
 end)
 
--- Close Button ("X" Red Glossy Button)
+-- Close Button ("X" Red Glossy Button - ZIndex = 405)
 local closebtn = Instance.new("TextButton")
 closebtn.Name = "closebtn"
 closebtn.AnchorPoint = Vector2.new(1, 0.5)
@@ -387,7 +387,7 @@ closebtn.Text = "X"
 closebtn.TextColor3 = WHITE
 closebtn.TextSize = 20
 closebtn.Font = F_STUD
-closebtn.ZIndex = 404
+closebtn.ZIndex = 405
 closebtn.Parent = Topbar
 
 corner(closebtn, 6)
@@ -403,7 +403,7 @@ closebtn.MouseLeave:Connect(function()
 end)
 
 --------------------------------------------------------------
--- TAB LIST (STUD PANEL WITH DISTINCT TAB COLORS)
+-- TAB LIST (NO STUD TEXTURES INSIDE TABS)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
@@ -496,7 +496,7 @@ local function icon(parent, kind)
 	return box
 end
 
--- Tab Button Creator with Custom Multi-Color Stud Themes
+-- Tab Button Creator with Sleek Multi-Color Theme Gradients
 local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
@@ -516,7 +516,7 @@ local function newTab(name, label, order)
 
 	local theme = TAB_THEMES[name] or TAB_THEMES.Home
 
-	-- Active/Hover Gradient
+	-- Clean Glossy Gradient (NO STUD TEXTURES INSIDE TABS)
 	local tabGrad = glossyGradient(b, TAB_INACT_1, TAB_INACT_2, 90)
 
 	-- Highlight overlay
@@ -541,7 +541,7 @@ local function newTab(name, label, order)
 	ish.Parent = b
 	corner(ish, 6)
 
-	-- Left Accent Bar (Custom Theme Accent)
+	-- Left Accent Bar (Glowing Accent Color)
 	local mark = Instance.new("Frame")
 	mark.Name = "mark"
 	mark.AnchorPoint = Vector2.new(0, 0.5)
@@ -616,7 +616,7 @@ newTab("Settings",  "Settings",   4)
 newTab("Credits",   "Credits",    5)
 
 --------------------------------------------------------------
--- SECTION CONTAINERS
+-- SECTION CONTAINERS (CLEAN SLEEK GLASS - NO STUD TEXTURES INSIDE)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
