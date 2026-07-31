@@ -43,6 +43,7 @@ local DEFAULTS = {
 	settings = {
 		disable_3d_rendering = false,
 		auto_rejoin_on_kick = false,
+		auto_exec_on_tp = true,
 		sounds = true,
 		tp_step = 160,
 	},
@@ -85,6 +86,54 @@ local function readCfg()
 	end)
 	return (ok and type(dec) == "table") and dec or DEFAULTS
 end
+
+--------------------------------------------------------------
+-- AUTO EXEC ON TELEPORT
+-- every executor named this thing differently, so grab whichever
+-- one exists. if none does, no autoexec and thats it
+--------------------------------------------------------------
+local queueTp = (syn and syn.queue_on_teleport)
+	or queue_on_teleport
+	or (fluxus and fluxus.queue_on_teleport)
+	or queueonteleport
+	or (secure_load and nil)
+
+-- the little script that gets left in the queue. it reruns the
+-- loader pointing at the same repo, and waits for the game to be
+-- loaded first because otherwise PlaceId can still be the old one
+local function tpPayload()
+	return ([[
+getgenv().HUB_BASE = %q
+getgenv().HUB_FROM_TP = true
+if not game:IsLoaded() then game.Loaded:Wait() end
+task.wait(%d)
+local ok, err = pcall(function()
+	loadstring(game:HttpGet(%q))()
+end)
+if not ok then warn("[hub] autoexec failed: " .. tostring(err)) end
+]]):format(BASE, 3, BASE .. "main.lua")
+end
+
+-- call this right before any teleport
+local function armTeleport()
+	if not queueTp then return false end
+	local cfg = readCfg()
+	if cfg.settings and cfg.settings.auto_exec_on_tp == false then return false end
+	local ok = pcall(queueTp, tpPayload())
+	if not ok then warn("[hub] couldnt queue the script for the teleport") end
+	return ok
+end
+
+-- if the game teleports you on its own (server hop, lobby, whatever)
+-- we still want the hub back on the other side
+pcall(function()
+	plr.OnTeleport:Connect(function(state)
+		if state == Enum.TeleportState.Started
+		or state == Enum.TeleportState.RequestedFromServer then
+			armTeleport()
+		end
+	end)
+end)
 
 --------------------------------------------------------------
 -- FETCH
@@ -418,7 +467,38 @@ end
 --------------------------------------------------------------
 -- GAMES LIST
 --------------------------------------------------------------
-elements:Searchbar(Sections.GamesList.Container, gameList)
+-- one single place that handles jumping to another game, so the list
+-- and the searchbar behave the same
+local function jumpTo(g)
+	if tostring(g.id) == pid then
+		elements:Notify("already here", g.game, "info")
+		return
+	end
+
+	-- leave the loader queued BEFORE jumping, otherwise you land
+	-- on the other side with nothing running
+	local armed = armTeleport()
+	if armed then
+		elements:Notify("taking you there", g.game .. " · the hub reopens on its own", "ok")
+	else
+		elements:Notify("taking you there",
+			g.game .. " · your executor cant autoexec, run it again over there", "warn")
+	end
+
+	task.wait(0.35) -- let the toast show up before the screen freezes
+
+	local okLaunch = pcall(function()
+		exservice:LaunchExperience({placeId = tonumber(g.id)})
+	end)
+	if not okLaunch then
+		-- if theres no ExperienceService fall back to normal teleport
+		pcall(function()
+			game:GetService("TeleportService"):Teleport(tonumber(g.id), plr)
+		end)
+	end
+end
+
+elements:Searchbar(Sections.GamesList.Container, gameList, jumpTo)
 
 -- if the list came back empty its always the json, so say it out loud
 -- instead of leaving the tab blank like it did before
@@ -435,19 +515,7 @@ end
 
 for _, g in ipairs(gameList) do
 	elements:addGame(Sections.GamesList.Container, g["game"], g["status"], function()
-		if tostring(g.id) == pid then
-			elements:Notify("already here", g.game, "info")
-			return
-		end
-		local okLaunch = pcall(function()
-			exservice:LaunchExperience({placeId = tonumber(g.id)})
-		end)
-		if not okLaunch then
-			-- if theres no ExperienceService fall back to normal teleport
-			pcall(function()
-				game:GetService("TeleportService"):Teleport(tonumber(g.id), plr)
-			end)
-		end
+		jumpTo(g)
 	end)
 end
 
@@ -486,6 +554,14 @@ elements:Toggle("Auto Rejoin (when kicked)", Sections.Settings.Container,
 	dec1.settings.auto_rejoin_on_kick, function(v)
 		saveKey("settings", "auto_rejoin_on_kick", v)
 		if getgenv then getgenv().autorjjjj = v end
+	end)
+
+elements:Toggle("Auto Exec on Teleport", Sections.Settings.Container,
+	dec1.settings.auto_exec_on_tp ~= false, function(v)
+		saveKey("settings", "auto_exec_on_tp", v)
+		if v and not queueTp then
+			elements:Notify("wont work", "your executor has no queue_on_teleport", "err")
+		end
 	end)
 
 elements:Toggle("Sounds", Sections.Settings.Container,
@@ -580,5 +656,12 @@ end
 goTo(loadedModule and Sections.Game or Sections.Home)
 
 task.delay(0.4, function()
-	elements:Notify("brainrot hub", "right shift to hide", "ok")
+	-- HUB_FROM_TP is set by the queued script, so i know i got here
+	-- through the games list and not because you ran it by hand
+	if getgenv and getgenv().HUB_FROM_TP then
+		getgenv().HUB_FROM_TP = nil
+		elements:Notify("back in", "loaded on its own after the teleport", "ok")
+	else
+		elements:Notify("brainrot hub", "right shift to hide", "ok")
+	end
 end)
