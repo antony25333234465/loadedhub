@@ -1,38 +1,33 @@
 --// elements.lua
---// same api as the original: Label, Button, Toggle, Textbox,
---// Unsupported, addGame, Searchbar, CredHead, CredPerson
---// plus Header, Stat, Divider and Notify
+--// Stud UI Pack Edition - Sleek Clean Elements (ZERO STUDS INSIDE TABS)
+--// 100% Compatible API: Label, Button, Toggle, Textbox, Unsupported,
+--// addGame, Searchbar, CredHead, CredPerson, Header, Stat, Divider, Notify
 
-local tweenservice     = game:GetService("TweenService")
-local players          = game:GetService("Players")
-local plr              = players.LocalPlayer
-
-local stuff = {}
+local tweenservice = game:GetService("TweenService")
+local players      = game:GetService("Players")
+local plr          = players.LocalPlayer
+local stuff        = {}
 
 --------------------------------------------------------------
--- theme  (same values as ui.lua)
+-- THEME & COLORS
 --------------------------------------------------------------
 local BG2     = Color3.fromRGB(28, 22, 42)
-local BOX     = Color3.fromRGB(46, 37, 68)
-local EDGE    = Color3.fromRGB(18, 14, 28)
-
-local PURPLE  = Color3.fromRGB(157, 122, 232)
-local LILAC   = Color3.fromRGB(186, 158, 245)
-local GREEN   = Color3.fromRGB(124, 190, 84)
-local ORANGE  = Color3.fromRGB(228, 158, 56)
-local RED     = Color3.fromRGB(203, 82, 66)
-local WHITE   = Color3.fromRGB(240, 236, 250)
-local GRAY    = Color3.fromRGB(168, 158, 192)
-local DIM     = Color3.fromRGB(120, 110, 146)
-local GOLD    = Color3.fromRGB(238, 196, 92)
-
-local TG_ON   = Color3.fromRGB(138, 96, 224)
-local TG_OFF  = Color3.fromRGB(58, 47, 82)
+local BOX     = Color3.fromRGB(35, 35, 48)
+local EDGE    = Color3.fromRGB(0, 0, 0)
+local PURPLE  = Color3.fromRGB(0, 180, 255)
+local LILAC   = Color3.fromRGB(180, 220, 255)
+local GREEN   = Color3.fromRGB(0, 230, 110)
+local ORANGE  = Color3.fromRGB(255, 180, 30)
+local RED     = Color3.fromRGB(255, 60, 70)
+local WHITE   = Color3.fromRGB(255, 255, 255)
+local GRAY    = Color3.fromRGB(200, 205, 220)
+local DIM     = Color3.fromRGB(140, 145, 165)
+local GOLD    = Color3.fromRGB(255, 210, 20)
+local TG_ON   = Color3.fromRGB(0, 200, 255)
+local TG_OFF  = Color3.fromRGB(45, 45, 60)
 
 local F  = Enum.Font.FredokaOne
-local F2 = Enum.Font.SourceSansSemibold
-
-local STUDS = "rbxassetid://117006067003358"
+local F2 = Enum.Font.FredokaOne
 
 local SMOOTH = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local BOUNCE = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -42,7 +37,7 @@ local SND_CLICK = "rbxassetid://6042053626"
 local SND_TOAST = "rbxassetid://4590662766"
 
 --------------------------------------------------------------
--- helpers
+-- HELPERS
 --------------------------------------------------------------
 local function tw(o, i, p)
 	local t = tweenservice:Create(o, i, p)
@@ -57,7 +52,7 @@ end
 
 local function corner(p, rad)
 	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, rad)
+	c.CornerRadius = UDim.new(0, rad or 8)
 	c.Parent = p
 	return c
 end
@@ -66,24 +61,32 @@ local function stroke(p, gr, col)
 	local s = Instance.new("UIStroke")
 	s.Thickness = gr or 2
 	s.Color = col or EDGE
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = p
 	return s
 end
 
+local function textStroke(p, th, col)
+	local s = Instance.new("UIStroke")
+	s.Thickness = th or 2
+	s.Color = col or EDGE
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	s.Parent = p
+	return s
+end
+
+local function glossyGradient(p, topCol, botCol, rot)
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new(topCol, botCol)
+	g.Rotation = rot or 90
+	g.Parent = p
+	return g
+end
+
+-- NO STUDS INSIDE ELEMENTS (Clean glossy look)
 local function studs(p, transp, rad)
-	local i = Instance.new("ImageLabel")
-	i.Name = "studs"
-	i.Size = UDim2.new(1, 0, 1, 0)
-	i.BackgroundTransparency = 1
-	i.Image = STUDS
-	i.ImageTransparency = transp or 0.85
-	i.ScaleType = Enum.ScaleType.Tile
-	i.TileSize = UDim2.new(0, 52, 0, 52)
-	i.Active = false -- otherwise this eats the clicks
-	i.ZIndex = p.ZIndex
-	i.Parent = p
-	corner(i, rad or 8)
-	return i
+	-- Intentionally empty: Zero studs inside tabs / cards / buttons
+	return nil
 end
 
 local sndCache
@@ -113,10 +116,9 @@ local function colOf(kind)
 end
 
 --------------------------------------------------------------
--- 3d button
+-- 3D BUTTON (CLEAN NO STUDS)
 --------------------------------------------------------------
-local SINK = 5
-
+local SINK = 4
 local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 	local h = Instance.new("Frame")
 	h.Size = size
@@ -127,12 +129,12 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 
 	local base = Instance.new("Frame")
 	base.Size = UDim2.new(1, 0, 1, 0)
-	base.BackgroundColor3 = darken(color, 0.6)
+	base.BackgroundColor3 = darken(color, 0.5)
 	base.BorderSizePixel = 0
 	base.ZIndex = z
 	base.Parent = h
-	corner(base, 9)
-	stroke(base, 2)
+	corner(base, 8)
+	stroke(base, 2, EDGE)
 
 	local face = Instance.new("TextButton")
 	face.Size = UDim2.new(1, 0, 1, -SINK)
@@ -143,16 +145,17 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 	face.ClipsDescendants = true
 	face.ZIndex = z + 1
 	face.Parent = h
-	corner(face, 9)
-	stroke(face, 2)
-	studs(face, 0.87, 9)
+	corner(face, 8)
+	stroke(face, 2, EDGE)
 
-	-- little shine on top so it looks like plastic
+	glossyGradient(face, color, darken(color, 0.75), 90)
+
+	-- Top plastic glossy sheen
 	local br = Instance.new("Frame")
-	br.Size = UDim2.new(1, -9, 0, 3)
-	br.Position = UDim2.new(0, 5, 0, 4)
-	br.BackgroundColor3 = Color3.new(1, 1, 1)
-	br.BackgroundTransparency = 0.8
+	br.Size = UDim2.new(1, -10, 0, 3)
+	br.Position = UDim2.new(0, 5, 0, 3)
+	br.BackgroundColor3 = WHITE
+	br.BackgroundTransparency = 0.75
 	br.BorderSizePixel = 0
 	br.ZIndex = z + 3
 	br.Parent = face
@@ -168,6 +171,7 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 	lbl.Font = F
 	lbl.ZIndex = z + 4
 	lbl.Parent = face
+	textStroke(lbl, 2, EDGE)
 
 	local sc = Instance.new("UIScale")
 	sc.Parent = face
@@ -175,12 +179,12 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 	scT.Parent = lbl
 
 	local shine = Instance.new("Frame")
-	shine.Size = UDim2.new(0, 26, 2, 0)
+	shine.Size = UDim2.new(0, 30, 2, 0)
 	shine.Position = UDim2.new(0, -50, -0.5, 0)
-	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.BackgroundColor3 = WHITE
 	shine.BackgroundTransparency = 1
 	shine.BorderSizePixel = 0
-	shine.Rotation = 17
+	shine.Rotation = 18
 	shine.ZIndex = z + 2
 	shine.Parent = face
 
@@ -188,8 +192,8 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 
 	face.MouseEnter:Connect(function()
 		if pressed then return end
-		tw(face, SMOOTH, {BackgroundColor3 = lighten(color, 1.13)})
-		tw(sc, SMOOTH, {Scale = 1.022})
+		tw(face, SMOOTH, {BackgroundColor3 = lighten(color, 1.15)})
+		tw(sc, SMOOTH, {Scale = 1.02})
 	end)
 
 	face.MouseLeave:Connect(function()
@@ -206,17 +210,18 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 		and i.UserInputType ~= Enum.UserInputType.Touch then return end
 		if pressed then return end
 		pressed = true
+
 		tw(face, SNAP, {Position = UDim2.new(0, 0, 0, SINK)})
-		tw(sc, SNAP, {Scale = 0.965})
-		tw(scT, SNAP, {Scale = 0.93})
+		tw(sc, SNAP, {Scale = 0.97})
+		tw(scT, SNAP, {Scale = 0.94})
 
 		local ax, ay = face.AbsolutePosition.X, face.AbsolutePosition.Y
 		local rp = Instance.new("Frame")
 		rp.AnchorPoint = Vector2.new(0.5, 0.5)
 		rp.Position = UDim2.new(0, i.Position.X - ax, 0, i.Position.Y - ay)
 		rp.Size = UDim2.new(0, 0, 0, 0)
-		rp.BackgroundColor3 = Color3.new(1, 1, 1)
-		rp.BackgroundTransparency = 0.55
+		rp.BackgroundColor3 = WHITE
+		rp.BackgroundTransparency = 0.5
 		rp.BorderSizePixel = 0
 		rp.ZIndex = z + 2
 		rp.Parent = face
@@ -235,16 +240,18 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 		and i.UserInputType ~= Enum.UserInputType.Touch then return end
 		if not pressed then return end
 		pressed = false
+
 		tw(face, BOUNCE, {Position = UDim2.new(0, 0, 0, 0)})
 		tw(sc, BOUNCE, {Scale = 1})
 		tw(scT, TweenInfo.new(0.4, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Scale = 1})
 
 		shine.Position = UDim2.new(0, -50, -0.5, 0)
-		shine.BackgroundTransparency = 0.62
+		shine.BackgroundTransparency = 0.6
 		tw(shine, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Position = UDim2.new(1, 40, -0.5, 0),
 			BackgroundTransparency = 1,
 		})
+
 		play(SND_CLICK, 0.4)
 	end)
 
@@ -252,13 +259,12 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 end
 
 --------------------------------------------------------------
--- NOTIFY  (toasts)
+-- NOTIFY (TOASTS)
 --------------------------------------------------------------
-local T_W, T_H, T_GAP = 268, 62, 9
+local T_W, T_H, T_GAP = 270, 64, 10
 local toasts = {}
 local toastRoot
 
--- restacks them bottom to top every time one comes or goes
 local function restack()
 	local y = -14
 	for i = #toasts, 1, -1 do
@@ -274,10 +280,9 @@ end
 
 function stuff:Notify(title, text, kind, dur)
 	if not toastRoot then
-		-- hang them off whatever screen gui we can reach
 		local hui = gethui or get_hidden_gui
 		local ok = pcall(function()
-			toastRoot = (hui and hui() or game:GetService("CoreGui")):FindFirstChild("\0BrainrotHub")
+			toastRoot = (hui and hui() or game:GetService("CoreGui")):FindFirstChild("\0LoadedHub")
 		end)
 		if not ok or not toastRoot then
 			toastRoot = plr:FindFirstChildOfClass("PlayerGui")
@@ -288,7 +293,6 @@ function stuff:Notify(title, text, kind, dur)
 	local col = colOf(kind)
 	dur = dur or 3
 
-	-- if there are too many kill the oldest, else the screen fills up
 	if #toasts >= 4 then
 		local v = toasts[1]
 		if v and v:FindFirstChild("closer") then v.closer:Destroy() end
@@ -304,23 +308,9 @@ function stuff:Notify(title, text, kind, dur)
 	t.ClipsDescendants = true
 	t.ZIndex = 900
 	t.Parent = toastRoot
-	corner(t, 9)
-	stroke(t, 2)
-	studs(t, 0.87, 9)
 
-	local sh = Instance.new("Frame")
-	sh.Size = UDim2.new(1, 8, 1, 8)
-	sh.Position = UDim2.new(0, -4, 0, -1)
-	sh.BackgroundColor3 = Color3.new(0, 0, 0)
-	sh.BackgroundTransparency = 0.74
-	sh.BorderSizePixel = 0
-	sh.ZIndex = 899
-	sh.Parent = t
-	corner(sh, 11)
-
-	local sc = Instance.new("UIScale")
-	sc.Scale = 0.9
-	sc.Parent = t
+	corner(t, 8)
+	stroke(t, 2, EDGE)
 
 	local acc = Instance.new("Frame")
 	acc.Size = UDim2.new(0, 5, 1, -10)
@@ -342,10 +332,11 @@ function stuff:Notify(title, text, kind, dur)
 	tit.TextXAlignment = Enum.TextXAlignment.Left
 	tit.ZIndex = 903
 	tit.Parent = t
+	textStroke(tit, 2, EDGE)
 
 	local body = Instance.new("TextLabel")
 	body.Size = UDim2.new(1, -60, 0, 22)
-	body.Position = UDim2.new(0, 17, 0, 27)
+	body.Position = UDim2.new(0, 17, 0, 28)
 	body.BackgroundTransparency = 1
 	body.Text = text or ""
 	body.TextColor3 = GRAY
@@ -356,6 +347,7 @@ function stuff:Notify(title, text, kind, dur)
 	body.TextWrapped = true
 	body.ZIndex = 903
 	body.Parent = t
+	textStroke(body, 1.5, EDGE)
 
 	local x = Instance.new("TextButton")
 	x.Name = "closer"
@@ -368,16 +360,20 @@ function stuff:Notify(title, text, kind, dur)
 	x.Font = F
 	x.ZIndex = 904
 	x.Parent = t
+	textStroke(x, 2, EDGE)
 
 	local dr = Instance.new("Frame")
 	dr.Size = UDim2.new(1, -10, 0, 3)
 	dr.Position = UDim2.new(0, 5, 1, -7)
 	dr.BackgroundColor3 = col
-	dr.BackgroundTransparency = 0.35
 	dr.BorderSizePixel = 0
 	dr.ZIndex = 903
 	dr.Parent = t
 	corner(dr, 2)
+
+	local sc = Instance.new("UIScale")
+	sc.Scale = 0.9
+	sc.Parent = t
 
 	table.insert(toasts, t)
 	restack()
@@ -385,13 +381,6 @@ function stuff:Notify(title, text, kind, dur)
 	tw(sc, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 	tw(dr, TweenInfo.new(dur, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 3)})
 	play(SND_TOAST, 0.35)
-
-	task.spawn(function()
-		task.wait(0.12)
-		tw(acc, TweenInfo.new(0.18), {BackgroundColor3 = lighten(col, 1.5)})
-		task.wait(0.2)
-		tw(acc, TweenInfo.new(0.3), {BackgroundColor3 = col})
-	end)
 
 	local dead = false
 	local function kill()
@@ -411,20 +400,12 @@ function stuff:Notify(title, text, kind, dur)
 	x.MouseButton1Click:Connect(kill)
 	x.Destroying:Connect(kill)
 
-	local hovering = false
-	t.MouseEnter:Connect(function() hovering = true end)
-	t.MouseLeave:Connect(function() hovering = false end)
-
-	task.delay(dur, function()
-		while hovering do task.wait(0.2) end
-		kill()
-	end)
-
+	task.delay(dur, function() kill() end)
 	return t
 end
 
 --------------------------------------------------------------
--- ELEMENTS
+-- ELEMENTS (NO STUDS INSIDE)
 --------------------------------------------------------------
 function stuff:Label(king, str, col, size)
 	local l = Instance.new("TextLabel")
@@ -440,10 +421,12 @@ function stuff:Label(king, str, col, size)
 	l.AutomaticSize = Enum.AutomaticSize.Y
 	l.ZIndex = 404
 	l.Parent = king
+	textStroke(l, 1.5, EDGE)
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.Parent = l
+
 	return l
 end
 
@@ -454,15 +437,17 @@ function stuff:Header(king, str)
 	l.BackgroundTransparency = 1
 	l.Text = str
 	l.TextColor3 = PURPLE
-	l.TextSize = 16
+	l.TextSize = 17
 	l.Font = F
 	l.TextXAlignment = Enum.TextXAlignment.Left
 	l.ZIndex = 404
 	l.Parent = king
+	textStroke(l, 2, EDGE)
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.Parent = l
+
 	return l
 end
 
@@ -471,15 +456,12 @@ function stuff:Divider(king)
 	f.Name = "DividerElement"
 	f.Size = UDim2.new(1, -14, 0, 2)
 	f.BackgroundColor3 = EDGE
-	f.BackgroundTransparency = 0.4
 	f.BorderSizePixel = 0
 	f.ZIndex = 403
 	f.Parent = king
 	return f
 end
 
--- label on the left, value on the right. returns the value label
--- so you can keep updating it
 function stuff:Stat(king, str, value, kind)
 	local col = WHITE
 	if kind == "ok"   then col = GREEN  end
@@ -492,14 +474,14 @@ function stuff:Stat(king, str, value, kind)
 
 	local f = Instance.new("Frame")
 	f.Name = "StatElement"
-	f.Size = UDim2.new(1, -8, 0, 30)
+	f.Size = UDim2.new(1, -8, 0, 32)
 	f.BackgroundColor3 = BOX
 	f.BorderSizePixel = 0
 	f.ZIndex = 403
 	f.Parent = king
+
 	corner(f, 7)
-	stroke(f, 2)
-	studs(f, 0.89, 7)
+	stroke(f, 2, EDGE)
 
 	local a = Instance.new("TextLabel")
 	a.Size = UDim2.new(0.5, 0, 1, 0)
@@ -512,6 +494,7 @@ function stuff:Stat(king, str, value, kind)
 	a.TextXAlignment = Enum.TextXAlignment.Left
 	a.ZIndex = 405
 	a.Parent = f
+	textStroke(a, 1.5, EDGE)
 
 	local b = Instance.new("TextLabel")
 	b.Name = "val"
@@ -527,13 +510,13 @@ function stuff:Stat(king, str, value, kind)
 	b.TextTruncate = Enum.TextTruncate.AtEnd
 	b.ZIndex = 405
 	b.Parent = f
+	textStroke(b, 2, EDGE)
 
 	return b, f
 end
 
 function stuff:Button(str, king, cb)
-	local face = makeButton(king, UDim2.new(1, -8, 0, 40), UDim2.new(0, 0, 0, 0),
-		PURPLE, str, 16, 403)
+	local face = makeButton(king, UDim2.new(1, -8, 0, 40), UDim2.new(0, 0, 0, 0), PURPLE, str, 16, 403)
 	local holder = face.Parent
 	holder.Name = "ButtonElement"
 
@@ -543,22 +526,23 @@ function stuff:Button(str, king, cb)
 			if not ok then warn("[hub] button:", err) end
 		end)
 	end)
+
 	return face
 end
 
 function stuff:Toggle(str, king, def, cb)
 	local newTog = Instance.new("TextButton")
 	newTog.Name = "ToggleElement"
-	newTog.Size = UDim2.new(1, -8, 0, 40)
+	newTog.Size = UDim2.new(1, -8, 0, 42)
 	newTog.BackgroundColor3 = BOX
 	newTog.AutoButtonColor = false
 	newTog.Text = ""
 	newTog.BorderSizePixel = 0
 	newTog.ZIndex = 403
 	newTog.Parent = king
+
 	corner(newTog, 8)
-	local togStroke = stroke(newTog, 2)
-	studs(newTog, 0.89, 8)
+	local togStroke = stroke(newTog, 2, EDGE)
 
 	local lbl = Instance.new("TextLabel")
 	lbl.Name = "TextLabel"
@@ -572,6 +556,7 @@ function stuff:Toggle(str, king, def, cb)
 	lbl.TextXAlignment = Enum.TextXAlignment.Left
 	lbl.ZIndex = 405
 	lbl.Parent = newTog
+	textStroke(lbl, 2, EDGE)
 
 	local togbg = Instance.new("Frame")
 	togbg.Name = "togglebg"
@@ -582,20 +567,22 @@ function stuff:Toggle(str, king, def, cb)
 	togbg.BorderSizePixel = 0
 	togbg.ZIndex = 405
 	togbg.Parent = newTog
+
 	corner(togbg, 999)
-	stroke(togbg, 2)
+	stroke(togbg, 2, EDGE)
 
 	local knob = Instance.new("Frame")
 	knob.Name = "leftrightlol"
 	knob.AnchorPoint = Vector2.new(0, 0.5)
 	knob.Size = UDim2.new(0, 20, 0, 20)
 	knob.Position = UDim2.new(0, 2, 0.5, 0)
-	knob.BackgroundColor3 = Color3.fromRGB(240, 234, 252)
+	knob.BackgroundColor3 = WHITE
 	knob.BorderSizePixel = 0
 	knob.ZIndex = 406
 	knob.Parent = togbg
+
 	corner(knob, 999)
-	stroke(knob, 2)
+	stroke(knob, 2, EDGE)
 
 	local isTog = def and true or false
 
@@ -617,6 +604,7 @@ function stuff:Toggle(str, king, def, cb)
 	end
 
 	paint(false)
+
 	task.defer(function()
 		local ok, err = pcall(cb, isTog)
 		if not ok then warn("[hub] toggle init:", err) end
@@ -635,11 +623,11 @@ function stuff:Toggle(str, king, def, cb)
 	newTog.MouseEnter:Connect(function()
 		tw(newTog, SMOOTH, {BackgroundColor3 = lighten(BOX, 1.12)})
 	end)
+
 	newTog.MouseLeave:Connect(function()
 		tw(newTog, SMOOTH, {BackgroundColor3 = BOX})
 	end)
 
-	-- so it can be flipped from outside (keybinds)
 	return {
 		Set = function(v)
 			if isTog == v then return end
@@ -653,14 +641,14 @@ end
 function stuff:Textbox(str, king, def, cb)
 	local newTb = Instance.new("Frame")
 	newTb.Name = "TextboxElement"
-	newTb.Size = UDim2.new(1, -8, 0, 40)
+	newTb.Size = UDim2.new(1, -8, 0, 42)
 	newTb.BackgroundColor3 = BOX
 	newTb.BorderSizePixel = 0
 	newTb.ZIndex = 403
 	newTb.Parent = king
+
 	corner(newTb, 8)
-	stroke(newTb, 2)
-	studs(newTb, 0.89, 8)
+	stroke(newTb, 2, EDGE)
 
 	local lbl = Instance.new("TextLabel")
 	lbl.Name = "TextLabel"
@@ -674,18 +662,20 @@ function stuff:Textbox(str, king, def, cb)
 	lbl.TextXAlignment = Enum.TextXAlignment.Left
 	lbl.ZIndex = 405
 	lbl.Parent = newTb
+	textStroke(lbl, 2, EDGE)
 
 	local tbbg = Instance.new("Frame")
 	tbbg.Name = "tbbg"
 	tbbg.AnchorPoint = Vector2.new(1, 0.5)
-	tbbg.Size = UDim2.new(0.5, -14, 0, 26)
+	tbbg.Size = UDim2.new(0.5, -14, 0, 28)
 	tbbg.Position = UDim2.new(1, -12, 0.5, 0)
-	tbbg.BackgroundColor3 = Color3.fromRGB(24, 19, 36)
+	tbbg.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
 	tbbg.BorderSizePixel = 0
 	tbbg.ZIndex = 405
 	tbbg.Parent = newTb
+
 	corner(tbbg, 6)
-	stroke(tbbg, 2)
+	stroke(tbbg, 2, EDGE)
 
 	local inp = Instance.new("TextBox")
 	inp.Name = "Inp"
@@ -702,6 +692,7 @@ function stuff:Textbox(str, king, def, cb)
 	inp.TextXAlignment = Enum.TextXAlignment.Left
 	inp.ZIndex = 406
 	inp.Parent = tbbg
+	textStroke(inp, 1.5, EDGE)
 
 	inp.FocusLost:Connect(function()
 		task.spawn(function()
@@ -709,6 +700,7 @@ function stuff:Textbox(str, king, def, cb)
 			if not ok then warn("[hub] textbox:", err) end
 		end)
 	end)
+
 	return inp
 end
 
@@ -720,9 +712,9 @@ function stuff:Unsupported(king, cb)
 	newUs.BorderSizePixel = 0
 	newUs.ZIndex = 403
 	newUs.Parent = king
+
 	corner(newUs, 9)
-	stroke(newUs, 2)
-	studs(newUs, 0.88, 9)
+	stroke(newUs, 2, EDGE)
 
 	local h = Instance.new("TextLabel")
 	h.Size = UDim2.new(1, -20, 0, 30)
@@ -734,6 +726,7 @@ function stuff:Unsupported(king, cb)
 	h.Font = F
 	h.ZIndex = 405
 	h.Parent = newUs
+	textStroke(h, 2, EDGE)
 
 	local d = Instance.new("TextLabel")
 	d.Size = UDim2.new(1, -28, 0, 40)
@@ -746,13 +739,12 @@ function stuff:Unsupported(king, cb)
 	d.TextWrapped = true
 	d.ZIndex = 405
 	d.Parent = newUs
+	textStroke(d, 1.5, EDGE)
 
-	local glbtn = makeButton(newUs, UDim2.new(1, -28, 0, 38), UDim2.new(0, 14, 0, 90),
-		PURPLE, "games list", 16, 405)
+	local glbtn = makeButton(newUs, UDim2.new(1, -28, 0, 38), UDim2.new(0, 14, 0, 90), PURPLE, "games list", 16, 405)
 	glbtn.Name = "glbtn"
 
-	local sug = makeButton(newUs, UDim2.new(1, -28, 0, 34), UDim2.new(0, 14, 0, 128),
-		BOX, "suggest game", 15, 405)
+	local sug = makeButton(newUs, UDim2.new(1, -28, 0, 34), UDim2.new(0, 14, 0, 128), BOX, "suggest game", 15, 405)
 	sug.Name = "suggestbtn"
 
 	local sugLbl = sug:FindFirstChild("TextLabel")
@@ -783,8 +775,9 @@ function stuff:addGame(king, gname, gstate, cb)
 	base.BorderSizePixel = 0
 	base.ZIndex = 403
 	base.Parent = newGame
+
 	corner(base, 8)
-	stroke(base, 2)
+	stroke(base, 2, EDGE)
 
 	local btn = Instance.new("TextButton")
 	btn.Name = "ButtonElement"
@@ -795,9 +788,9 @@ function stuff:addGame(king, gname, gstate, cb)
 	btn.BorderSizePixel = 0
 	btn.ZIndex = 404
 	btn.Parent = newGame
+
 	corner(btn, 8)
-	stroke(btn, 2)
-	studs(btn, 0.89, 8)
+	stroke(btn, 2, EDGE)
 
 	local status = Instance.new("Frame")
 	status.Name = "status"
@@ -808,15 +801,16 @@ function stuff:addGame(king, gname, gstate, cb)
 	status.BorderSizePixel = 0
 	status.ZIndex = 406
 	status.Parent = btn
-	corner(status, 999)
-	stroke(status, 2)
 
-	if gstate == "\240\159\159\162" then          -- green circle
-		status.BackgroundColor3 = Color3.fromRGB(0, 220, 60)
-	elseif gstate == "\240\159\159\161" then      -- yellow circle
-		status.BackgroundColor3 = Color3.fromRGB(240, 210, 40)
-	elseif gstate == "\240\159\148\180" then      -- red circle
-		status.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+	corner(status, 999)
+	stroke(status, 2, EDGE)
+
+	if gstate == "🟢" or gstate == "\240\159\159\162" then
+		status.BackgroundColor3 = Color3.fromRGB(0, 230, 100)
+	elseif gstate == "🟡" or gstate == "\240\159\159\161" then
+		status.BackgroundColor3 = Color3.fromRGB(250, 200, 30)
+	elseif gstate == "🔴" or gstate == "\240\159\148\180" then
+		status.BackgroundColor3 = Color3.fromRGB(250, 60, 60)
 	end
 
 	local header = Instance.new("TextLabel")
@@ -832,6 +826,7 @@ function stuff:addGame(king, gname, gstate, cb)
 	header.TextTruncate = Enum.TextTruncate.AtEnd
 	header.ZIndex = 406
 	header.Parent = btn
+	textStroke(header, 1.5, EDGE)
 
 	local fl = Instance.new("TextLabel")
 	fl.AnchorPoint = Vector2.new(1, 0.5)
@@ -844,21 +839,22 @@ function stuff:addGame(king, gname, gstate, cb)
 	fl.Font = F
 	fl.ZIndex = 406
 	fl.Parent = btn
-
-	-- mark the one youre in right now
-	if tostring(game.PlaceId) == tostring(gname) then end
+	textStroke(fl, 1.5, EDGE)
 
 	btn.MouseEnter:Connect(function()
 		tw(btn, SMOOTH, {BackgroundColor3 = lighten(BOX, 1.15)})
 		tw(fl, SMOOTH, {TextColor3 = LILAC})
 	end)
+
 	btn.MouseLeave:Connect(function()
 		tw(btn, SMOOTH, {BackgroundColor3 = BOX})
 		tw(fl, SMOOTH, {TextColor3 = DIM})
 	end)
+
 	btn.MouseButton1Down:Connect(function()
 		btn.Position = UDim2.new(0, 0, 0, 4)
 	end)
+
 	local function up() btn.Position = UDim2.new(0, 0, 0, 0) end
 	btn.MouseButton1Up:Connect(up)
 	btn.MouseLeave:Connect(up)
@@ -874,14 +870,15 @@ end
 function stuff:Searchbar(king, gameList, onPick)
 	local sb = Instance.new("Frame")
 	sb.Name = "searchBar"
-	sb.Size = UDim2.new(1, -8, 0, 36)
-	sb.BackgroundColor3 = Color3.fromRGB(24, 19, 36)
+	sb.Size = UDim2.new(1, -8, 0, 38)
+	sb.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
 	sb.BorderSizePixel = 0
 	sb.LayoutOrder = -1
 	sb.ZIndex = 403
 	sb.Parent = king
+
 	corner(sb, 8)
-	stroke(sb, 2)
+	stroke(sb, 2, EDGE)
 
 	local inp = Instance.new("TextBox")
 	inp.Name = "Inp"
@@ -898,14 +895,11 @@ function stuff:Searchbar(king, gameList, onPick)
 	inp.TextXAlignment = Enum.TextXAlignment.Left
 	inp.ZIndex = 405
 	inp.Parent = sb
+	textStroke(inp, 1.5, EDGE)
 
 	local exservice
 	pcall(function() exservice = game:GetService("ExperienceService") end)
 
-	-- main.lua passes onPick so the search results teleport the exact
-	-- same way as the normal list does (queueing the script first).
-	-- without this the ones you find by searching jumped raw and the
-	-- hub didnt come back
 	local function jump(g)
 		if onPick then return onPick(g) end
 		pcall(function()
@@ -941,10 +935,12 @@ function stuff:CredHead(king, txt)
 	newHead.TextXAlignment = Enum.TextXAlignment.Left
 	newHead.ZIndex = 404
 	newHead.Parent = king
+	textStroke(newHead, 2, EDGE)
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.Parent = newHead
+
 	return newHead
 end
 
@@ -960,11 +956,14 @@ function stuff:CredPerson(king, txt)
 	newCred.TextXAlignment = Enum.TextXAlignment.Left
 	newCred.ZIndex = 404
 	newCred.Parent = king
+	textStroke(newCred, 1.5, EDGE)
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.Parent = newCred
+
 	return newCred
 end
 
 return stuff
+,path:/home/user/elements.lua}
