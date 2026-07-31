@@ -1,5 +1,5 @@
 --// ui.lua
---// Stud UI Pack - Ultimate Figma Rays Header & Sleek Vibrant Design
+--// Stud UI Pack - Figma Rays Header & Halftone Dot Gradient Overlay
 --// Fully compatible with main.lua
 
 local tweenservice = game:GetService("TweenService")
@@ -9,7 +9,7 @@ local runservice   = game:GetService("RunService")
 -- COLOR PALETTE & RICH VIBRANT THEMES
 --------------------------------------------------------------
 local MAIN_BG    = Color3.fromRGB(14, 14, 20)      -- Main Frame Deep Dark
-local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Dark Glass
+local PANEL_BG   = Color3.fromRGB(22, 22, 30)      -- Section Containers Solid Dark Glass (NO STUDS INSIDE)
 local BLACK_OUT  = Color3.fromRGB(0, 0, 0)         -- Thick Black UI Strokes
 local WHITE      = Color3.fromRGB(255, 255, 255)
 local LIGHT_GRAY = Color3.fromRGB(215, 220, 235)
@@ -90,11 +90,11 @@ end
 local rng = Random.new(os.time() % 99991)
 
 --------------------------------------------------------------
--- MAIN FRAME STUDDED BACKGROUND PATTERN (ONLY ON MAIN FRAME)
+-- MAIN FRAME STUDDED & HALFTONE PATTERN (ONLY ON OUTER FRAME)
 --------------------------------------------------------------
-local function addStudBackground(parent)
+local function addMainFramePatterns(parent)
 	local bg = Instance.new("Frame")
-	bg.Name = "StuddedBackground"
+	bg.Name = "OuterBackgroundPattern"
 	bg.Size = UDim2.new(1, 0, 1, 0)
 	bg.BackgroundColor3 = MAIN_BG
 	bg.BorderSizePixel = 0
@@ -103,9 +103,9 @@ local function addStudBackground(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
-	-- Main background stud texture (only on main container)
+	-- Outer stud grid texture (ONLY on outer frame edges)
 	local studs = Instance.new("ImageLabel")
-	studs.Name = "StudGridTexture"
+	studs.Name = "OuterStudTexture"
 	studs.Size = UDim2.new(1, 0, 1, 0)
 	studs.BackgroundTransparency = 1
 	studs.Image = "rbxassetid://9826359020"
@@ -115,6 +115,19 @@ local function addStudBackground(parent)
 	studs.TileSize = UDim2.new(0, 24, 0, 24)
 	studs.ZIndex = 400
 	studs.Parent = bg
+
+	-- Long Halftone Dot Gradient Texture Overlay (LongWhiteCircle_Halftone)
+	local halftone = Instance.new("ImageLabel")
+	halftone.Name = "HalftoneDotGradient"
+	halftone.Size = UDim2.new(1, 0, 1, 0)
+	halftone.Position = UDim2.new(0, 0, 0, 0)
+	halftone.BackgroundTransparency = 1
+	halftone.Image = "rbxassetid://10842503251" -- Halftone dot pattern gradient
+	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	halftone.ImageTransparency = 0.82
+	halftone.ScaleType = Enum.ScaleType.Crop
+	halftone.ZIndex = 400
+	halftone.Parent = bg
 
 	-- Vignette overlay
 	local vig = Instance.new("Frame")
@@ -205,7 +218,7 @@ MainFrame.Parent = ui
 corner(MainFrame, 10)
 stroke(MainFrame, 3.5, BLACK_OUT)
 
-addStudBackground(MainFrame)
+addMainFramePatterns(MainFrame)
 
 local scMain = Instance.new("UIScale")
 scMain.Scale = 0.9
@@ -237,7 +250,7 @@ do
 	raysOverlay.BackgroundTransparency = 1
 	raysOverlay.Image = "rbxassetid://10842502695" -- Figma style diagonal rays
 	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	raysOverlay.ImageTransparency = 0.25 -- HIGH VISIBILITY RAYS
+	raysOverlay.ImageTransparency = 0.22 -- HIGH VISIBILITY RAYS
 	raysOverlay.ScaleType = Enum.ScaleType.Crop
 	raysOverlay.ZIndex = 402 -- Strictly behind badge, title, buttons
 	raysOverlay.Parent = Topbar
@@ -410,6 +423,7 @@ TabList.Name = "tablist"
 TabList.Size = UDim2.new(0, 220, 1, -128)
 TabList.Position = UDim2.new(0, 12, 0, 80)
 TabList.BackgroundColor3 = PANEL_BG
+TabList.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS (BLOCKS ALL OUTER STUDS)
 TabList.BorderSizePixel = 0
 TabList.ZIndex = 401
 TabList.Parent = MainFrame
@@ -496,7 +510,7 @@ local function icon(parent, kind)
 	return box
 end
 
--- Tab Button Creator with Sleek Multi-Color Theme Gradients
+-- Tab Button Creator with Sleek Multi-Color Theme Gradients (NO STUDS INSIDE)
 local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
@@ -616,13 +630,14 @@ newTab("Settings",  "Settings",   4)
 newTab("Credits",   "Credits",    5)
 
 --------------------------------------------------------------
--- SECTION CONTAINERS (CLEAN SLEEK GLASS - NO STUD TEXTURES INSIDE)
+-- SECTION CONTAINERS (OPAQUE SOLID DARK GLASS - NO STUDS INSIDE)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
 SectionContainers.Size = UDim2.new(1, -256, 1, -128)
 SectionContainers.Position = UDim2.new(0, 244, 0, 80)
 SectionContainers.BackgroundColor3 = PANEL_BG
+SectionContainers.BackgroundTransparency = 0 -- 100% OPAQUE (BLOCKS ALL OUTER STUDS)
 SectionContainers.BorderSizePixel = 0
 SectionContainers.ClipsDescendants = true
 SectionContainers.ZIndex = 401
@@ -637,7 +652,8 @@ local function newSection(name)
 	f.AnchorPoint = Vector2.new(0.5, 0)
 	f.Size = UDim2.new(1, -16, 1, -14)
 	f.Position = UDim2.new(0.5, 0, 1, 0)
-	f.BackgroundTransparency = 1
+	f.BackgroundColor3 = PANEL_BG
+	f.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS
 	f.BorderSizePixel = 0
 	f.ScrollBarThickness = 5
 	f.ScrollBarImageColor3 = BLUE_TOP
@@ -646,6 +662,8 @@ local function newSection(name)
 	f.Visible = false
 	f.ZIndex = 402
 	f.Parent = SectionContainers
+
+	corner(f, 6)
 
 	local lay = Instance.new("UIListLayout")
 	lay.Padding = UDim.new(0, 8)
@@ -656,6 +674,15 @@ local function newSection(name)
 	pad.PaddingTop = UDim.new(0, 8)
 	pad.PaddingBottom = UDim.new(0, 8)
 	pad.Parent = f
+
+	-- AUTO-STRIP STUDS FROM ANY DYNAMICALLY ADDED ELEMENTS INSIDE TABS
+	f.DescendantAdded:Connect(function(desc)
+		if desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+			if string.find(string.lower(desc.Name), "stud") or string.find(tostring(desc.Image), "9826359020") then
+				desc:Destroy()
+			end
+		end
+	end)
 
 	return f
 end
