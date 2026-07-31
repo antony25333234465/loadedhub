@@ -1,6 +1,6 @@
 --// LOADED HUB - loader
 --// Stud UI Pack Edition - 100% Functional & Compatible
---// Everything fetched from repo with local caching & auto-teleport support
+--// Includes Cut Grass for Brainrots, Obby as a Brainrot, and Scary Shawarma Kiosk: The Anomaly
 
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
@@ -327,9 +327,9 @@ end)
 local H = Sections.Home.Container
 H.discan.Text       = H.discan.Text:gsub("redacted", DISCORD)
 H.bugsLabel.Text    = H.bugsLabel.Text:gsub("redacted", DISCORD)
-H.execLabel.Text    = "Executor: " .. tostring((pcall(getexec) and getexec()) or "unknown")
-H.versionLabel.Text = "Version: " .. VERSION
-H.placeLabel.Text   = "PlaceId: " .. tostring(game.PlaceId)
+H.execLabel.Text    = "exec: " .. tostring((pcall(getexec) and getexec()) or "unknown")
+H.versionLabel.Text = "ver: " .. VERSION
+H.placeLabel.Text   = "placeid: " .. tostring(game.PlaceId)
 
 --------------------------------------------------------------
 -- REMOTE DATA
@@ -344,8 +344,17 @@ local elements = loadstring(elementsSrc)()
 
 local gameListRaw = fetch(getgitpath("src") .. "gameslist.json", FOLDER .. "/gameslist.json")
 local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/credits.json")
-local gameList    = decode(gameListRaw, "gameslist.json", {})
+
+-- Default Games List including Scary Shawarma Kiosk: The Anomaly
+local defaultGames = {
+	{ game = "Cut Grass for Brainrots",           id = "97365843755210",  status = "🟢" },
+	{ game = "Obby as a Brainrot",                id = "77862067599263",  status = "🟢" },
+	{ game = "Scary Shawarma Kiosk: The Anomaly", id = "137826330724902", status = "🟢" }
+}
+
+local gameList    = decode(gameListRaw, "gameslist.json", defaultGames)
 local creditsList = decode(creditsRaw,   "credits.json",   {})
+if #gameList == 0 then gameList = defaultGames end
 pcall(function() ui:SetAttribute("busy", false) end)
 
 local function gameFromList(pid)
@@ -386,7 +395,7 @@ if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" 
 	if not handledLocally then
 		if hereGame then
 			elements:Header(Sections.Game.Container, hereGame.game)
-			elements:Stat(Sections.Game.Container, "cheat", "coming soon", "warn")
+			elements:Stat(Sections.Game.Container, "status", "coming soon", "warn")
 			elements:Label(Sections.Game.Container,
 				"this game is on the list but has no module yet.")
 			elements:Button("see game list", Sections.Game.Container, function()
@@ -435,10 +444,10 @@ local function jumpTo(g)
 
 	local armed = armTeleport()
 	if armed then
-		elements:Notify("taking you there", g.game .. " · the hub reopens on its own", "ok")
+		elements:Notify("taking you there", g.game .. " · hub reopens on teleport", "ok")
 	else
 		elements:Notify("taking you there",
-			g.game .. " · your executor cant autoexec, run it again over there", "warn")
+			g.game .. " · autoexec unavailable, run script again", "warn")
 	end
 
 	task.wait(0.35)
@@ -455,17 +464,6 @@ local function jumpTo(g)
 end
 
 elements:Searchbar(Sections.GamesList.Container, gameList, jumpTo)
-
-if #gameList == 0 then
-	elements:Header(Sections.GamesList.Container, "empty list")
-	elements:Stat(Sections.GamesList.Container, "gameslist.json", "not loaded", "err")
-	elements:Label(Sections.GamesList.Container,
-		"either its not up on the repo yet or the json is malformed. "
-		.. "the classic one is a comma after the last }")
-	elements:Button("retry", Sections.GamesList.Container, function()
-		elements:Notify("reload", "run the script again", "warn")
-	end)
-end
 
 for _, g in ipairs(gameList) do
 	elements:addGame(Sections.GamesList.Container, g["game"], g["status"], function()
@@ -610,7 +608,7 @@ goTo(loadedModule and Sections.Game or Sections.Home)
 task.delay(0.4, function()
 	if getgenv and getgenv().HUB_FROM_TP then
 		getgenv().HUB_FROM_TP = nil
-		elements:Notify("back in", "loaded on its own after the teleport", "ok")
+		elements:Notify("back in", "loaded on its own after teleport", "ok")
 	else
 		elements:Notify("loaded hub", "right shift to hide", "ok")
 	end
