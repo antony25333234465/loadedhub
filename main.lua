@@ -1,10 +1,9 @@
 --// LOADED HUB - loader
---// same layout as the original: ui + elements + per game modules
---// everything is fetched from the repo, so you only push files
+--// Stud UI Pack Edition - 100% Functional & Compatible
+--// Everything fetched from repo with local caching & auto-teleport support
 
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
-
 local coregui          = game:GetService("CoreGui")
 local userinputservice = game:GetService("UserInputService")
 local httpservice      = game:GetService("HttpService")
@@ -15,12 +14,10 @@ local players          = game:GetService("Players")
 -- ExperienceService is not on every client
 local exservice
 pcall(function() exservice = game:GetService("ExperienceService") end)
-
 local plr = players.LocalPlayer
 
 --------------------------------------------------------------
 -- REPO
--- point this at your raw github. everything else hangs off it
 --------------------------------------------------------------
 local BASE = getgenv and getgenv().HUB_BASE
 	or "https://raw.githubusercontent.com/antony25333234465/loadedhub/refs/heads/main/"
@@ -65,7 +62,6 @@ if hasFS then
 		if not isfile(CFG_FILE) then
 			writefile(CFG_FILE, httpservice:JSONEncode(DEFAULTS))
 		else
-			-- fill whats missing, in case i add new options later
 			local dec = httpservice:JSONDecode(readfile(CFG_FILE))
 			local changed = false
 			for sec, vals in pairs(DEFAULTS) do
@@ -89,8 +85,6 @@ end
 
 --------------------------------------------------------------
 -- AUTO EXEC ON TELEPORT
--- every executor named this thing differently, so grab whichever
--- one exists. if none does, no autoexec and thats it
 --------------------------------------------------------------
 local queueTp = (syn and syn.queue_on_teleport)
 	or queue_on_teleport
@@ -98,9 +92,6 @@ local queueTp = (syn and syn.queue_on_teleport)
 	or queueonteleport
 	or (secure_load and nil)
 
--- the little script that gets left in the queue. it reruns the
--- loader pointing at the same repo, and waits for the game to be
--- loaded first because otherwise PlaceId can still be the old one
 local function tpPayload()
 	return ([[
 getgenv().HUB_BASE = %q
@@ -114,7 +105,6 @@ if not ok then warn("[hub] autoexec failed: " .. tostring(err)) end
 ]]):format(BASE, 3, BASE .. "main.lua")
 end
 
--- call this right before any teleport
 local function armTeleport()
 	if not queueTp then return false end
 	local cfg = readCfg()
@@ -124,8 +114,6 @@ local function armTeleport()
 	return ok
 end
 
--- if the game teleports you on its own (server hop, lobby, whatever)
--- we still want the hub back on the other side
 pcall(function()
 	plr.OnTeleport:Connect(function(state)
 		if state == Enum.TeleportState.Started
@@ -137,18 +125,13 @@ end)
 
 --------------------------------------------------------------
 -- FETCH
--- tries the repo first, falls back to the local copy on disk.
--- that way it still works if github is down or you are offline
 --------------------------------------------------------------
--- raw.githubusercontent caches for ~5 min. sticking a junk param on the
--- end makes it a different url so it always gives me the fresh one
 local function bust(url)
 	return url .. "?nocache=" .. tostring(math.random(100000, 999999)) .. tostring(os.time())
 end
 
 local function fetch(url, cachePath)
 	local ok, body = pcall(function() return game:HttpGet(bust(url)) end)
-
 	if not ok then
 		warn("[hub] http failed on " .. url .. " -> " .. tostring(body))
 	elseif body == "404: Not Found" then
@@ -156,14 +139,12 @@ local function fetch(url, cachePath)
 	elseif not body or #body == 0 then
 		warn("[hub] empty answer from " .. url)
 	end
-
 	if ok and body and #body > 0 and body ~= "404: Not Found" then
 		if hasFS and cachePath then
 			pcall(function() writefile(cachePath, body) end)
 		end
 		return body
 	end
-
 	if hasFS and cachePath and isfile(cachePath) then
 		warn("[hub] falling back to the copy on disk: " .. cachePath)
 		local ok2, cached = pcall(function() return readfile(cachePath) end)
@@ -172,8 +153,6 @@ local function fetch(url, cachePath)
 	return nil
 end
 
--- json that shouts when it breaks. the silent pcall was hiding a
--- trailing comma for ages and the list just showed up empty
 local function decode(raw, what, fallback)
 	if not raw then
 		warn("[hub] no " .. what .. ", couldnt download it")
@@ -195,7 +174,6 @@ end
 --------------------------------------------------------------
 -- UI
 --------------------------------------------------------------
--- close the old one first, otherwise they stack up
 pcall(function()
 	local root = hui and hui() or coregui
 	local old = root:FindFirstChild("\0LoadedHub")
@@ -210,7 +188,6 @@ end
 
 local ui = loadstring(uiSrc)()
 ui.Parent = hui and hui() or coregui
-
 pcall(function() if syn and syn.protect_gui then syn.protect_gui(ui) end end)
 pcall(function() if protectgui then protectgui(ui) end end)
 
@@ -255,7 +232,6 @@ for _, sect in pairs(Sections) do
 			end
 		end
 	end)
-
 	sect.TabBtn.MouseLeave:Connect(function()
 		for _, stroke in pairs(sect.TabBtn:GetChildren()) do
 			if stroke.Name == "InnerShadow" then
@@ -263,21 +239,17 @@ for _, sect in pairs(Sections) do
 			end
 		end
 	end)
-
 	sect.TabBtn.MouseButton1Click:Connect(function()
 		if CurSection == sect then return end
-
 		if CurSection then
 			CurSection.TabBtn.BackgroundTransparency = 1
 			CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0),
 				Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
 		end
-
 		sect.TabBtn.BackgroundTransparency = 0
 		sect.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0),
 			Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
 		sect.Container.Visible = true
-
 		CurSection = sect
 	end)
 end
@@ -311,7 +283,7 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------
--- drag
+-- DRAG
 --------------------------------------------------------------
 local dragging = false
 local dragInput, mousePos, framePos
@@ -322,7 +294,6 @@ Topbar.InputBegan:Connect(function(input)
 		dragging = true
 		mousePos = input.Position
 		framePos = MainFrame.Position
-
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -351,22 +322,19 @@ userinputservice.InputChanged:Connect(function(input)
 end)
 
 --------------------------------------------------------------
--- HOME labels
+-- HOME LABELS
 --------------------------------------------------------------
 local H = Sections.Home.Container
-
-H.discan.Text     = H.discan.Text:gsub("redacted", DISCORD)
-H.bugsLabel.Text  = H.bugsLabel.Text:gsub("redacted", DISCORD)
-H.execLabel.Text  = "Executor: " .. tostring((pcall(getexec) and getexec()) or "unknown")
+H.discan.Text       = H.discan.Text:gsub("redacted", DISCORD)
+H.bugsLabel.Text    = H.bugsLabel.Text:gsub("redacted", DISCORD)
+H.execLabel.Text    = "Executor: " .. tostring((pcall(getexec) and getexec()) or "unknown")
 H.versionLabel.Text = "Version: " .. VERSION
-H.placeLabel.Text = "PlaceId: " .. tostring(game.PlaceId)
+H.placeLabel.Text   = "PlaceId: " .. tostring(game.PlaceId)
 
 --------------------------------------------------------------
 -- REMOTE DATA
 --------------------------------------------------------------
--- light up the strip at the bottom while the rest is downloading
 pcall(function() ui:SetAttribute("busy", true) end)
-
 local elementsSrc = fetch(getgitpath("src") .. "elements.lua", FOLDER .. "/src_elements.lua")
 if not elementsSrc then
 	warn("[hub] couldnt fetch elements.lua")
@@ -376,13 +344,10 @@ local elements = loadstring(elementsSrc)()
 
 local gameListRaw = fetch(getgitpath("src") .. "gameslist.json", FOLDER .. "/gameslist.json")
 local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/credits.json")
-
 local gameList    = decode(gameListRaw, "gameslist.json", {})
 local creditsList = decode(creditsRaw,   "credits.json",   {})
-
 pcall(function() ui:SetAttribute("busy", false) end)
 
--- tells me if the game im in shows up on the list
 local function gameFromList(pid)
 	pid = tostring(pid)
 	for _, g in ipairs(gameList) do
@@ -392,25 +357,19 @@ local function gameFromList(pid)
 end
 
 --------------------------------------------------------------
--- GAME  (PlaceId detection)
+-- GAME (PlaceId detection)
 --------------------------------------------------------------
 local pid = tostring(game.PlaceId)
 local hereGame = gameFromList(pid)
 
--- debug: getgenv().FORCE_MODULE = "97365843755210" loads that module
--- in any game so you can test without joining the right one
 local wantId = (getgenv and getgenv().FORCE_MODULE) and tostring(getgenv().FORCE_MODULE) or pid
-
 local okGame, gamePath = pcall(function()
 	return game:HttpGet(getgitpath("games") .. wantId .. ".lua")
 end)
 
 local loadedModule = false
-
 if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" then
-	-- nothing on the repo, try a local file
 	local handledLocally = false
-
 	if hasFS and isfile(FOLDER .. "/games/" .. wantId .. ".lua") then
 		local okLocal, err = pcall(function()
 			local mod = loadstring(readfile(FOLDER .. "/games/" .. wantId .. ".lua"))()
@@ -426,7 +385,6 @@ if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" 
 
 	if not handledLocally then
 		if hereGame then
-			-- its on the list but has no module yet
 			elements:Header(Sections.Game.Container, hereGame.game)
 			elements:Stat(Sections.Game.Container, "cheat", "coming soon", "warn")
 			elements:Label(Sections.Game.Container,
@@ -441,18 +399,15 @@ if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" 
 		end
 	end
 else
-	-- cache it so it still works offline next time
 	if hasFS then
 		pcall(function()
 			writefile(FOLDER .. "/games/" .. wantId .. ".lua", gamePath)
 		end)
 	end
-
 	local okRun, err = pcall(function()
 		local gameModule = loadstring(gamePath)()
 		gameModule(Sections.Game.Container, readCfg(), elements)
 	end)
-
 	if okRun then
 		loadedModule = true
 	else
@@ -465,23 +420,19 @@ end
 if loadedModule then
 	Sections.Game.TabBtn.Text = "Game"
 	pcall(function()
-		Sections.Game.TabBtn.TextColor3 = Color3.fromRGB(157, 122, 232)
+		Sections.Game.TabBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
 	end)
 end
 
 --------------------------------------------------------------
 -- GAMES LIST
 --------------------------------------------------------------
--- one single place that handles jumping to another game, so the list
--- and the searchbar behave the same
 local function jumpTo(g)
 	if tostring(g.id) == pid then
 		elements:Notify("already here", g.game, "info")
 		return
 	end
 
-	-- leave the loader queued BEFORE jumping, otherwise you land
-	-- on the other side with nothing running
 	local armed = armTeleport()
 	if armed then
 		elements:Notify("taking you there", g.game .. " · the hub reopens on its own", "ok")
@@ -490,13 +441,13 @@ local function jumpTo(g)
 			g.game .. " · your executor cant autoexec, run it again over there", "warn")
 	end
 
-	task.wait(0.35) -- let the toast show up before the screen freezes
+	task.wait(0.35)
 
 	local okLaunch = pcall(function()
 		exservice:LaunchExperience({placeId = tonumber(g.id)})
 	end)
+
 	if not okLaunch then
-		-- if theres no ExperienceService fall back to normal teleport
 		pcall(function()
 			game:GetService("TeleportService"):Teleport(tonumber(g.id), plr)
 		end)
@@ -505,8 +456,6 @@ end
 
 elements:Searchbar(Sections.GamesList.Container, gameList, jumpTo)
 
--- if the list came back empty its always the json, so say it out loud
--- instead of leaving the tab blank like it did before
 if #gameList == 0 then
 	elements:Header(Sections.GamesList.Container, "empty list")
 	elements:Stat(Sections.GamesList.Container, "gameslist.json", "not loaded", "err")
@@ -538,7 +487,6 @@ end
 -- SETTINGS
 --------------------------------------------------------------
 local dec1 = readCfg()
-
 local function saveKey(sec, key, v)
 	if not hasFS then return end
 	pcall(function()
@@ -611,14 +559,13 @@ elements:Button("clear cache", Sections.Settings.Container, function()
 end)
 
 --------------------------------------------------------------
--- auto rejoin
+-- AUTO REJOIN
 --------------------------------------------------------------
 task.spawn(function()
 	local gc = coregui:FindFirstChild("RobloxPromptGui")
 	if not gc then return end
 	local prompt = gc:FindFirstChild("promptOverlay")
 	if not prompt then return end
-
 	prompt.ChildAdded:Connect(function(child)
 		local cfg = readCfg()
 		if not cfg.settings.auto_rejoin_on_kick then return end
@@ -631,7 +578,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------
--- keybind
+-- KEYBIND
 --------------------------------------------------------------
 userinputservice.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
@@ -647,22 +594,20 @@ userinputservice.InputBegan:Connect(function(input, gpe)
 end)
 
 --------------------------------------------------------------
--- startup
+-- STARTUP
 --------------------------------------------------------------
 if dec1.settings.disable_3d_rendering then
 	pcall(function() runservice:Set3dRenderingEnabled(false) end)
 end
+
 if getgenv then
 	getgenv().autorjjjj = dec1.settings.auto_rejoin_on_kick
 	getgenv().hubSounds = dec1.settings.sounds
 end
 
--- open straight on Game if the game is supported, else Home
 goTo(loadedModule and Sections.Game or Sections.Home)
 
 task.delay(0.4, function()
-	-- HUB_FROM_TP is set by the queued script, so i know i got here
-	-- through the games list and not because you ran it by hand
 	if getgenv and getgenv().HUB_FROM_TP then
 		getgenv().HUB_FROM_TP = nil
 		elements:Notify("back in", "loaded on its own after the teleport", "ok")
