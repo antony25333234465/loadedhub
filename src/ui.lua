@@ -1,5 +1,5 @@
 --// ui.lua
---// Stud UI Pack Edition - Inspired by Roblox Stud UI Pack (Studded Grid, Glossy Gradients, Thick Black Outlines)
+--// Stud UI Pack Edition - Figma Rays Header & Custom Vibrant Tab Colors
 --// Fully compatible with main.lua
 
 local tweenservice = game:GetService("TweenService")
@@ -15,13 +15,21 @@ local WHITE      = Color3.fromRGB(255, 255, 255)
 local LIGHT_GRAY = Color3.fromRGB(210, 215, 230)
 local MUTED_GRAY = Color3.fromRGB(150, 155, 175)
 
--- Glossy Gradients
-local BLUE_TOP   = Color3.fromRGB(0, 180, 255)     -- Stud Header Blue Top
-local BLUE_BOT   = Color3.fromRGB(0, 105, 210)     -- Stud Header Blue Bottom
-local TAB_INACT_1 = Color3.fromRGB(60, 60, 75)    -- Inactive Tab Top
-local TAB_INACT_2 = Color3.fromRGB(38, 38, 48)    -- Inactive Tab Bottom
-local GOLD_TOP   = Color3.fromRGB(255, 220, 30)    -- Stud Gold Top
-local GOLD_BOT   = Color3.fromRGB(190, 140, 0)     -- Stud Gold Bottom
+-- Header Base Gradient
+local BLUE_TOP   = Color3.fromRGB(0, 180, 255)     -- Header Blue Top
+local BLUE_BOT   = Color3.fromRGB(0, 105, 210)     -- Header Blue Bottom
+
+-- Tab Theme Color Palette (Distinct Stud Colors for Each Tab)
+local TAB_THEMES = {
+	Home      = { Top = Color3.fromRGB(0, 180, 255),   Bot = Color3.fromRGB(0, 105, 210),   Accent = Color3.fromRGB(0, 230, 255) },
+	Game      = { Top = Color3.fromRGB(0, 220, 110),   Bot = Color3.fromRGB(0, 130, 60),    Accent = Color3.fromRGB(50, 255, 140) },
+	Gameslist = { Top = Color3.fromRGB(255, 210, 20),   Bot = Color3.fromRGB(180, 130, 0),   Accent = Color3.fromRGB(255, 235, 80) },
+	Settings  = { Top = Color3.fromRGB(210, 50, 240),  Bot = Color3.fromRGB(120, 20, 150),  Accent = Color3.fromRGB(245, 120, 255) },
+	Credits   = { Top = Color3.fromRGB(255, 70, 80),   Bot = Color3.fromRGB(170, 20, 30),   Accent = Color3.fromRGB(255, 130, 140) },
+}
+
+local TAB_INACT_1 = Color3.fromRGB(55, 55, 70)    -- Inactive Tab Top
+local TAB_INACT_2 = Color3.fromRGB(35, 35, 45)    -- Inactive Tab Bottom
 local RED_TOP    = Color3.fromRGB(255, 60, 70)     -- Close Button Red Top
 local RED_BOT    = Color3.fromRGB(180, 15, 25)     -- Close Button Red Bottom
 
@@ -131,54 +139,6 @@ local function addStudBackground(parent)
 end
 
 --------------------------------------------------------------
--- STUD BUTTON CREATOR
---------------------------------------------------------------
-local function button(parent, size, pos, color, text, txtSize, z, txtCol)
-	local b = Instance.new("TextButton")
-	b.Size = size
-	b.Position = pos
-	b.BackgroundColor3 = color
-	b.AutoButtonColor = false
-	b.Text = text
-	b.TextColor3 = txtCol or WHITE
-	b.TextSize = txtSize
-	b.Font = F_STUD
-	b.BorderSizePixel = 0
-	b.ClipsDescendants = true
-	b.ZIndex = z
-	b.Parent = parent
-
-	corner(b, 8)
-	stroke(b, 2.5, BLACK_OUT)
-	textStroke(b, 2, BLACK_OUT)
-
-	local sc = Instance.new("UIScale")
-	sc.Parent = b
-
-	b.MouseEnter:Connect(function()
-		tw(b, SMOOTH, {BackgroundColor3 = lighten(color, 1.15)})
-		tw(sc, SMOOTH, {Scale = 1.03})
-	end)
-
-	b.MouseLeave:Connect(function()
-		tw(b, SMOOTH, {BackgroundColor3 = color})
-		tw(sc, SMOOTH, {Scale = 1})
-	end)
-
-	b.MouseButton1Down:Connect(function()
-		tw(b, SNAP, {BackgroundColor3 = lighten(color, 0.85)})
-		tw(sc, SNAP, {Scale = 0.97})
-	end)
-
-	b.MouseButton1Up:Connect(function()
-		tw(b, SMOOTH, {BackgroundColor3 = lighten(color, 1.15)})
-		tw(sc, BOUNCE, {Scale = 1.03})
-	end)
-
-	return b
-end
-
---------------------------------------------------------------
 -- ROOT GUI
 --------------------------------------------------------------
 local ui = Instance.new("ScreenGui")
@@ -253,7 +213,7 @@ scMain.Parent = MainFrame
 tw(scMain, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 
 --------------------------------------------------------------
--- TOPBAR (HEADER IN STUD UI PACK STYLE)
+-- TOPBAR (FIGMA RAYS STYLE HEADER)
 --------------------------------------------------------------
 local Topbar = Instance.new("Frame")
 Topbar.Name = "TopBar"
@@ -268,25 +228,64 @@ corner(Topbar, 8)
 stroke(Topbar, 3, BLACK_OUT)
 glossyGradient(Topbar, BLUE_TOP, BLUE_BOT, 90)
 
+-- FIGMA LIGHT RAYS OVERLAY EFFECT
+do
+	local raysOverlay = Instance.new("ImageLabel")
+	raysOverlay.Name = "RaysOverlay"
+	raysOverlay.Size = UDim2.new(1, 0, 1, 0)
+	raysOverlay.Position = UDim2.new(0, 0, 0, 0)
+	raysOverlay.BackgroundTransparency = 1
+	raysOverlay.Image = "rbxassetid://10842502695" -- High quality Figma diagonal light rays
+	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	raysOverlay.ImageTransparency = 0.65
+	raysOverlay.ScaleType = Enum.ScaleType.Crop
+	raysOverlay.ZIndex = 402
+	raysOverlay.Parent = Topbar
+
+	-- Additional procedural light ray beams
+	for i = 1, 3 do
+		local beam = Instance.new("Frame")
+		beam.Name = "RayBeam" .. i
+		beam.AnchorPoint = Vector2.new(0.5, 0.5)
+		beam.Size = UDim2.new(0, i * 45 + 30, 2.5, 0)
+		beam.Position = UDim2.new(i * 0.28, 0, 0.5, 0)
+		beam.BackgroundColor3 = WHITE
+		beam.BackgroundTransparency = 0.88
+		beam.BorderSizePixel = 0
+		beam.Rotation = -35
+		beam.ZIndex = 402
+		beam.Parent = Topbar
+
+		local bg = Instance.new("UIGradient")
+		bg.Rotation = 90
+		bg.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		bg.Parent = beam
+	end
+end
+
 -- Sheen animation across header
 do
 	local sheen = Instance.new("Frame")
 	sheen.Name = "sheen"
-	sheen.Size = UDim2.new(0, 90, 2, 0)
-	sheen.Position = UDim2.new(0, -140, -0.5, 0)
+	sheen.Size = UDim2.new(0, 110, 2.5, 0)
+	sheen.Position = UDim2.new(0, -150, -0.5, 0)
 	sheen.BackgroundColor3 = WHITE
-	sheen.BackgroundTransparency = 0.88
+	sheen.BackgroundTransparency = 0.85
 	sheen.BorderSizePixel = 0
-	sheen.Rotation = 14
-	sheen.ZIndex = 402
+	sheen.Rotation = 25
+	sheen.ZIndex = 403
 	sheen.Parent = Topbar
 
 	task.spawn(function()
 		while sheen.Parent do
-			task.wait(rng:NextNumber(4.5, 8))
-			sheen.Position = UDim2.new(0, -140, -0.5, 0)
-			tw(sheen, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Position = UDim2.new(1, 160, -0.5, 0)})
+			task.wait(rng:NextNumber(4, 7))
+			sheen.Position = UDim2.new(0, -150, -0.5, 0)
+			tw(sheen, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{Position = UDim2.new(1, 170, -0.5, 0)})
 		end
 	end)
 end
@@ -299,7 +298,7 @@ badge.Size = UDim2.new(0, 44, 0, 44)
 badge.Position = UDim2.new(0, 14, 0.5, 0)
 badge.BackgroundColor3 = Color3.fromRGB(240, 245, 255)
 badge.BorderSizePixel = 0
-badge.ZIndex = 403
+badge.ZIndex = 404
 badge.Parent = Topbar
 
 corner(badge, 8)
@@ -314,11 +313,11 @@ badgeTxt.Text = "LH"
 badgeTxt.TextColor3 = Color3.fromRGB(0, 110, 210)
 badgeTxt.TextSize = 20
 badgeTxt.Font = F_STUD
-badgeTxt.ZIndex = 404
+badgeTxt.ZIndex = 405
 badgeTxt.Parent = badge
 textStroke(badgeTxt, 2, BLACK_OUT)
 
--- Header Title
+-- Header Title & Subtitle
 local title = Instance.new("TextLabel")
 title.Name = "title"
 title.AnchorPoint = Vector2.new(0, 0.5)
@@ -340,8 +339,8 @@ sub.AnchorPoint = Vector2.new(0, 0.5)
 sub.Size = UDim2.new(0, 280, 0, 16)
 sub.Position = UDim2.new(0, 70, 0.5, 14)
 sub.BackgroundTransparency = 1
-sub.Text = "Brainrot Automation Suite"
-sub.TextColor3 = Color3.fromRGB(200, 235, 255)
+sub.Text = "good games scripts"
+sub.TextColor3 = Color3.fromRGB(210, 240, 255)
 sub.TextSize = 13
 sub.Font = F_SUB
 sub.TextXAlignment = Enum.TextXAlignment.Left
@@ -404,7 +403,7 @@ closebtn.MouseLeave:Connect(function()
 end)
 
 --------------------------------------------------------------
--- TAB LIST (STUD PANEL)
+-- TAB LIST (STUD PANEL WITH DISTINCT TAB COLORS)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
@@ -497,7 +496,7 @@ local function icon(parent, kind)
 	return box
 end
 
--- Tab Button Creator (Stud UI Glossy Style)
+-- Tab Button Creator with Custom Multi-Color Stud Themes
 local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
@@ -515,6 +514,8 @@ local function newTab(name, label, order)
 	corner(b, 6)
 	stroke(b, 2, BLACK_OUT)
 
+	local theme = TAB_THEMES[name] or TAB_THEMES.Home
+
 	-- Active/Hover Gradient
 	local tabGrad = glossyGradient(b, TAB_INACT_1, TAB_INACT_2, 90)
 
@@ -522,7 +523,7 @@ local function newTab(name, label, order)
 	local hl = Instance.new("Frame")
 	hl.Name = "hl"
 	hl.Size = UDim2.new(1, 0, 1, 0)
-	hl.BackgroundColor3 = BLUE_TOP
+	hl.BackgroundColor3 = theme.Top
 	hl.BackgroundTransparency = 1
 	hl.BorderSizePixel = 0
 	hl.ZIndex = 404
@@ -540,13 +541,13 @@ local function newTab(name, label, order)
 	ish.Parent = b
 	corner(ish, 6)
 
-	-- Left Accent Bar (Gold Stud Accent)
+	-- Left Accent Bar (Custom Theme Accent)
 	local mark = Instance.new("Frame")
 	mark.Name = "mark"
 	mark.AnchorPoint = Vector2.new(0, 0.5)
 	mark.Size = UDim2.new(0, 4, 0, 0)
 	mark.Position = UDim2.new(0, 3, 0.5, 0)
-	mark.BackgroundColor3 = GOLD_TOP
+	mark.BackgroundColor3 = theme.Accent
 	mark.BorderSizePixel = 0
 	mark.ZIndex = 407
 	mark.Parent = b
@@ -593,7 +594,7 @@ local function newTab(name, label, order)
 		active = b.BackgroundTransparency < 0.5
 
 		if active then
-			tabGrad.Color = ColorSequence.new(BLUE_TOP, BLUE_BOT)
+			tabGrad.Color = ColorSequence.new(theme.Top, theme.Bot)
 			t.TextColor3 = WHITE
 			tw(hl, GLIDE, {BackgroundTransparency = 0.1})
 			tw(mark, BOUNCE, {Size = UDim2.new(0, 4, 0, 24)})
@@ -713,7 +714,7 @@ fnote.AnchorPoint = Vector2.new(0, 0.5)
 fnote.Size = UDim2.new(0, 300, 1, 0)
 fnote.Position = UDim2.new(0, 24, 0.5, 0)
 fnote.BackgroundTransparency = 1
-fnote.Text = "Loaded Hub - Stud UI Edition"
+fnote.Text = "Loaded Hub - by loaded"
 fnote.TextColor3 = LIGHT_GRAY
 fnote.TextSize = 13
 fnote.Font = F_SUB
