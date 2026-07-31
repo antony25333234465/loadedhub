@@ -86,8 +86,8 @@ local function backdrop(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
-	-- slow colour wash. rotation goes 0..360 forever, the tween
-	-- would snap back at 360 so i just kick it again each lap
+	-- slow colour wash. rotation would snap back at 360 so i just
+	-- swing it there and back instead of looping it round
 	local g = Instance.new("UIGradient")
 	g.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(58, 54, 118)),
@@ -109,7 +109,9 @@ local function backdrop(parent)
 		end
 	end)
 
-	-- two fat blurry blobs so the corners arent dead flat
+	----------------------------------------------------------
+	-- layer 1: the two fat blobs, so the corners arent dead flat
+	----------------------------------------------------------
 	for i = 1, 2 do
 		local blob = Instance.new("Frame")
 		blob.Name = "blob" .. i
@@ -126,6 +128,9 @@ local function backdrop(parent)
 		blob.Parent = bg
 		corner(blob, 999)
 
+		local bs = Instance.new("UIScale")
+		bs.Parent = blob
+
 		task.spawn(function()
 			local up = true
 			while blob.Parent do
@@ -137,12 +142,117 @@ local function backdrop(parent)
 						math.clamp(blob.Position.X.Scale + dx, 0.05, 0.95), 0,
 						math.clamp(blob.Position.Y.Scale + dy, 0.05, 0.95), 0),
 				})
+				-- breathe on a different clock than the drift, otherwise
+				-- the two line up and it looks mechanical
+				tw(bs, TweenInfo.new(5.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+					{Scale = up and 1.12 or 0.92})
 				task.wait(7.7)
 			end
 		end)
 	end
 
-	-- the diamonds. 11 felt right, 20 was noisy
+	----------------------------------------------------------
+	-- layer 2: grid of dots that fades in and out in patches
+	----------------------------------------------------------
+	do
+		local grid = Instance.new("Frame")
+		grid.Name = "grid"
+		grid.Size = UDim2.new(1, 0, 1, 0)
+		grid.BackgroundTransparency = 1
+		grid.Active = false
+		grid.ZIndex = 400
+		grid.Parent = bg
+
+		local dots = {}
+		local cols, rows = 13, 8
+		for cx = 0, cols - 1 do
+			for cy = 0, rows - 1 do
+				local p = Instance.new("Frame")
+				p.AnchorPoint = Vector2.new(0.5, 0.5)
+				p.Size = UDim2.new(0, 3, 0, 3)
+				p.Position = UDim2.new((cx + 0.5) / cols, 0, (cy + 0.5) / rows, 0)
+				p.BackgroundColor3 = Color3.fromRGB(150, 142, 226)
+				p.BackgroundTransparency = 0.93
+				p.BorderSizePixel = 0
+				p.Active = false
+				p.ZIndex = 400
+				p.Parent = grid
+				corner(p, 999)
+				dots[#dots + 1] = p
+			end
+		end
+
+		-- light up a random patch, let it fade, pick another spot
+		task.spawn(function()
+			while grid.Parent do
+				local hx = rng:NextNumber(0, 1)
+				local hy = rng:NextNumber(0, 1)
+				for _, p in ipairs(dots) do
+					local dx = p.Position.X.Scale - hx
+					local dy = p.Position.Y.Scale - hy
+					local dist = math.sqrt(dx * dx + dy * dy)
+					if dist < 0.29 then
+						local near = 1 - (dist / 0.29)
+						tw(p, TweenInfo.new(1.4, Enum.EasingStyle.Sine),
+							{BackgroundTransparency = 0.93 - near * 0.55})
+					end
+				end
+				task.wait(1.6)
+				for _, p in ipairs(dots) do
+					tw(p, TweenInfo.new(2.1, Enum.EasingStyle.Sine),
+						{BackgroundTransparency = 0.93})
+				end
+				task.wait(rng:NextNumber(1.9, 3.4))
+			end
+		end)
+	end
+
+	----------------------------------------------------------
+	-- layer 3: streaks that slide across on a diagonal
+	----------------------------------------------------------
+	for i = 1, 4 do
+		local ln = Instance.new("Frame")
+		ln.Name = "streak"
+		ln.AnchorPoint = Vector2.new(0.5, 0.5)
+		ln.Size = UDim2.new(0, 2, 0, 150)
+		ln.BackgroundColor3 = Color3.fromRGB(158, 150, 235)
+		ln.BackgroundTransparency = 1
+		ln.BorderSizePixel = 0
+		ln.Rotation = 24
+		ln.Active = false
+		ln.ZIndex = 400
+		ln.Parent = bg
+
+		local grad = Instance.new("UIGradient")
+		grad.Rotation = 90
+		grad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		grad.Parent = ln
+
+		task.spawn(function()
+			task.wait(rng:NextNumber(0, 9))
+			while ln.Parent do
+				local y = rng:NextNumber(0.08, 0.92)
+				local dur = rng:NextNumber(2.6, 4.4)
+				ln.Position = UDim2.new(-0.12, 0, y, 0)
+				ln.Size = UDim2.new(0, rng:NextInteger(2, 3), 0, rng:NextInteger(110, 210))
+				ln.BackgroundTransparency = rng:NextNumber(0.55, 0.75)
+				tw(ln, TweenInfo.new(dur, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+					{Position = UDim2.new(1.12, 0, y - 0.14, 0)})
+				task.wait(dur - 0.5)
+				if not ln.Parent then return end
+				tw(ln, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+				task.wait(rng:NextNumber(3.5, 9.5))
+			end
+		end)
+	end
+
+	----------------------------------------------------------
+	-- layer 4: the diamonds. 11 felt right, 20 was noisy
+	----------------------------------------------------------
 	for i = 1, 11 do
 		local d = Instance.new("Frame")
 		d.Name = "shard"
@@ -158,14 +268,15 @@ local function backdrop(parent)
 		corner(d, 3)
 
 		task.spawn(function()
-			-- stagger them or they all launch on the same frame and
-			-- it looks like a wave instead of drifting
+			-- stagger or they all launch on the same frame and it
+			-- reads as a wave instead of drifting
 			task.wait(rng:NextNumber(0, 6.5))
 			while d.Parent do
 				local size = rng:NextInteger(9, 27)
 				local x    = rng:NextNumber(0.03, 0.97)
 				local dur  = rng:NextNumber(11.5, 23)
 				local spin = rng:NextNumber(-140, 140)
+				local sway = rng:NextNumber(-0.11, 0.11)
 
 				d.Size = UDim2.new(0, size, 0, size)
 				d.Position = UDim2.new(x, 0, 1.15, 0)
@@ -173,16 +284,47 @@ local function backdrop(parent)
 				d.BackgroundTransparency = 1
 
 				tw(d, TweenInfo.new(1.6), {BackgroundTransparency = rng:NextNumber(0.72, 0.9)})
-				tw(d, TweenInfo.new(dur, Enum.EasingStyle.Linear), {
-					Position = UDim2.new(x + rng:NextNumber(-0.11, 0.11), 0, -0.2, 0),
+				-- two hops instead of one straight line so it wobbles
+				tw(d, TweenInfo.new(dur * 0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Position = UDim2.new(x + sway, 0, 0.55, 0),
+					Rotation = d.Rotation + spin * 0.5,
+				})
+				task.wait(dur * 0.5)
+				if not d.Parent then return end
+				tw(d, TweenInfo.new(dur * 0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Position = UDim2.new(x - sway, 0, -0.2, 0),
 					Rotation = d.Rotation + spin,
 				})
-				task.wait(dur - 1.7)
+				task.wait(dur * 0.5 - 1.7)
 				if not d.Parent then return end
 				tw(d, TweenInfo.new(1.6), {BackgroundTransparency = 1})
 				task.wait(1.8)
 			end
 		end)
+	end
+
+	----------------------------------------------------------
+	-- layer 5: vignette so the middle reads brighter than the edges
+	----------------------------------------------------------
+	do
+		local vig = Instance.new("Frame")
+		vig.Name = "vignette"
+		vig.Size = UDim2.new(1, 0, 1, 0)
+		vig.BackgroundColor3 = Color3.fromRGB(24, 21, 52)
+		vig.BackgroundTransparency = 0.72
+		vig.BorderSizePixel = 0
+		vig.Active = false
+		vig.ZIndex = 400
+		vig.Parent = bg
+
+		local vg = Instance.new("UIGradient")
+		vg.Rotation = 90
+		vg.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.25),
+			NumberSequenceKeypoint.new(0.45, 1),
+			NumberSequenceKeypoint.new(1, 0.35),
+		})
+		vg.Parent = vig
 	end
 
 	return bg
@@ -476,7 +618,7 @@ end)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
-TabList.Size = UDim2.new(0, 236, 1, -132)
+TabList.Size = UDim2.new(0, 236, 1, -138)
 TabList.Position = UDim2.new(0, 12, 0, 87)
 TabList.BackgroundColor3 = BODY
 TabList.BackgroundTransparency = 0.06
@@ -687,7 +829,7 @@ newTab("Credits",   "Credits",    5)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
-SectionContainers.Size = UDim2.new(1, -272, 1, -132)
+SectionContainers.Size = UDim2.new(1, -272, 1, -138)
 SectionContainers.Position = UDim2.new(0, 260, 0, 87)
 SectionContainers.BackgroundColor3 = BODY
 SectionContainers.BackgroundTransparency = 0.06
@@ -734,19 +876,27 @@ newSection("settingsFrame")
 newSection("creditsFrame")
 
 --------------------------------------------------------------
--- footer. version on the left, live fps on the right
+-- footer. status dot, live fps, ping and a clock.
+-- the strip along the very bottom is a loading bar that only
+-- shows up when something is actually fetching
 --------------------------------------------------------------
 local footer = Instance.new("Frame")
 footer.Name = "footer"
 footer.AnchorPoint = Vector2.new(0.5, 1)
-footer.Size = UDim2.new(1, -24, 0, 30)
+footer.Size = UDim2.new(1, -24, 0, 32)
 footer.Position = UDim2.new(0.5, 0, 1, -8)
 footer.BackgroundColor3 = BAR
 footer.BackgroundTransparency = 0.22
 footer.BorderSizePixel = 0
+footer.ClipsDescendants = true
 footer.ZIndex = 401
 footer.Parent = MainFrame
 corner(footer, 8)
+
+-- the bar wipes in from the left on open
+footer.Size = UDim2.new(0, 0, 0, 32)
+tw(footer, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+	{Size = UDim2.new(1, -24, 0, 32)})
 
 local dot = Instance.new("Frame")
 dot.Name = "dot"
@@ -758,6 +908,32 @@ dot.BorderSizePixel = 0
 dot.ZIndex = 403
 dot.Parent = footer
 corner(dot, 999)
+
+-- ring that pings out of the dot, like a radar blip
+task.spawn(function()
+	while dot.Parent do
+		local r = Instance.new("Frame")
+		r.AnchorPoint = Vector2.new(0.5, 0.5)
+		r.Size = UDim2.new(0, 8, 0, 8)
+		r.Position = UDim2.new(0.5, 0, 0.5, 0)
+		r.BackgroundTransparency = 1
+		r.BorderSizePixel = 0
+		r.ZIndex = 402
+		r.Parent = dot
+		corner(r, 999)
+		local rs = Instance.new("UIStroke")
+		rs.Thickness = 1
+		rs.Color = GREEN
+		rs.Transparency = 0.35
+		rs.Parent = r
+
+		tw(r, TweenInfo.new(1.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Size = UDim2.new(0, 26, 0, 26)})
+		tw(rs, TweenInfo.new(1.7), {Transparency = 1})
+		task.delay(1.8, function() r:Destroy() end)
+		task.wait(2.3)
+	end
+end)
 
 task.spawn(function()
 	while dot.Parent do
@@ -773,7 +949,7 @@ end)
 local fnote = Instance.new("TextLabel")
 fnote.Name = "fnote"
 fnote.AnchorPoint = Vector2.new(0, 0.5)
-fnote.Size = UDim2.new(0, 320, 1, 0)
+fnote.Size = UDim2.new(0, 300, 1, 0)
 fnote.Position = UDim2.new(0, 26, 0.5, 0)
 fnote.BackgroundTransparency = 1
 fnote.Text = "loaded hub  -  right shift to hide"
@@ -784,21 +960,41 @@ fnote.TextXAlignment = Enum.TextXAlignment.Left
 fnote.ZIndex = 403
 fnote.Parent = footer
 
-local fps = Instance.new("TextLabel")
-fps.Name = "fps"
-fps.AnchorPoint = Vector2.new(1, 0.5)
-fps.Size = UDim2.new(0, 120, 1, 0)
-fps.Position = UDim2.new(1, -12, 0.5, 0)
-fps.BackgroundTransparency = 1
-fps.Text = "-- fps"
-fps.TextColor3 = Color3.fromRGB(160, 154, 208)
-fps.TextSize = 13
-fps.Font = F2
-fps.TextXAlignment = Enum.TextXAlignment.Right
-fps.ZIndex = 403
-fps.Parent = footer
+-- little readout on the right. one label per stat with a thin
+-- divider between them
+local function readout(offset, w, txt)
+	local l = Instance.new("TextLabel")
+	l.AnchorPoint = Vector2.new(1, 0.5)
+	l.Size = UDim2.new(0, w, 1, 0)
+	l.Position = UDim2.new(1, -offset, 0.5, 0)
+	l.BackgroundTransparency = 1
+	l.Text = txt
+	l.TextColor3 = Color3.fromRGB(160, 154, 208)
+	l.TextSize = 13
+	l.Font = F2
+	l.TextXAlignment = Enum.TextXAlignment.Right
+	l.ZIndex = 403
+	l.Parent = footer
 
--- counting frames over one second, dividing 1/dt jumps around too much
+	local pipe = Instance.new("Frame")
+	pipe.AnchorPoint = Vector2.new(1, 0.5)
+	pipe.Size = UDim2.new(0, 1, 0, 12)
+	pipe.Position = UDim2.new(1, -offset - w - 7, 0.5, 0)
+	pipe.BackgroundColor3 = Color3.fromRGB(104, 98, 158)
+	pipe.BackgroundTransparency = 0.45
+	pipe.BorderSizePixel = 0
+	pipe.ZIndex = 403
+	pipe.Parent = footer
+
+	return l
+end
+
+local clock = readout(12, 52, "--:--")
+local ping  = readout(78, 62, "-- ms")
+local fps   = readout(154, 62, "-- fps")
+
+-- counting frames over a whole second. 1/dt jumps around way
+-- too much to read
 task.spawn(function()
 	local frames = 0
 	local last = os.clock()
@@ -821,6 +1017,76 @@ task.spawn(function()
 		end
 	end)
 end)
+
+-- ping + clock. both cheap, 2s apart is plenty
+task.spawn(function()
+	local stats = game:GetService("Stats")
+	while ping.Parent do
+		local ms
+		pcall(function()
+			ms = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+		end)
+		if ms then
+			ping.Text = ms .. " ms"
+			ping.TextColor3 = ms < 120 and Color3.fromRGB(150, 200, 130)
+				or (ms < 260 and Color3.fromRGB(214, 178, 108)
+				or Color3.fromRGB(210, 120, 110))
+		else
+			ping.Text = "-- ms"
+		end
+		clock.Text = os.date("%H:%M")
+		task.wait(2)
+	end
+end)
+
+-- thin strip glued to the bottom edge. hidden until something
+-- calls ui:SetBusy(true), then it slides back and forth
+do
+	local rail = Instance.new("Frame")
+	rail.Name = "rail"
+	rail.AnchorPoint = Vector2.new(0.5, 1)
+	rail.Size = UDim2.new(1, -24, 0, 3)
+	rail.Position = UDim2.new(0.5, 0, 1, -3)
+	rail.BackgroundColor3 = Color3.fromRGB(38, 35, 76)
+	rail.BackgroundTransparency = 1
+	rail.BorderSizePixel = 0
+	rail.ClipsDescendants = true
+	rail.ZIndex = 402
+	rail.Parent = MainFrame
+	corner(rail, 999)
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new(0.3, 0, 1, 0)
+	fill.Position = UDim2.new(-0.3, 0, 0, 0)
+	fill.BackgroundColor3 = LILAC
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 403
+	fill.Parent = rail
+	corner(fill, 999)
+
+	local busy = false
+
+	task.spawn(function()
+		while rail.Parent do
+			if busy then
+				fill.Position = UDim2.new(-0.3, 0, 0, 0)
+				tw(fill, TweenInfo.new(0.95, Enum.EasingStyle.Quad,
+					Enum.EasingDirection.InOut), {Position = UDim2.new(1, 0, 0, 0)})
+				task.wait(1)
+			else
+				task.wait(0.25)
+			end
+		end
+	end)
+
+	-- exposed so main.lua can flip it while it fetches
+	ui:SetAttribute("busy", false)
+	ui:GetAttributeChangedSignal("busy"):Connect(function()
+		busy = ui:GetAttribute("busy") == true
+		tw(rail, SMOOTH, {BackgroundTransparency = busy and 0.4 or 1})
+		tw(fill, SMOOTH, {BackgroundTransparency = busy and 0 or 1})
+	end)
+end
 
 --------------------------------------------------------------
 -- home labels. main.lua gsubs "redacted" on these so they must exist
