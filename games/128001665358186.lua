@@ -8,196 +8,160 @@ return function(king, cfg, el)
 	local ws         = game:GetService("Workspace")
 	local plr        = players.LocalPlayer
 
-	local GREEN   = Color3.fromRGB(0, 230, 100)
-	local RED     = Color3.fromRGB(250, 40, 50)
-	local ORANGE  = Color3.fromRGB(255, 140, 0)
-	local WHITE   = Color3.fromRGB(255, 255, 255)
-	local GRAY    = Color3.fromRGB(200, 205, 220)
-	local DIM     = Color3.fromRGB(140, 145, 165)
-	local BLACK   = Color3.fromRGB(0, 0, 0)
+	local GREEN = Color3.fromRGB(0, 255, 100)
+	local RED   = Color3.fromRGB(255, 30, 40)
+	local WHITE = Color3.fromRGB(255, 255, 255)
+	local GRAY  = Color3.fromRGB(200, 205, 220)
+	local DIM   = Color3.fromRGB(140, 145, 165)
 
 	local espEnabled = false
-	local autoScan   = false
 	local walkSpeed  = 16
 	local speedOn    = false
-	local activeESP  = {}
+	local activeHighlights = {}
 
 	el:Header(king, "scary shawarma kiosk")
 
-	local lblScan   = el:Stat(king, "counter status", "safe", "ok")
-	local lblTarget = el:Stat(king, "customer type", "none", "dim")
+	local lblScan   = el:Stat(king, "customer status", "none", "dim")
 	local lblSpeed  = el:Stat(king, "walkspeed", "16", "loot")
 
-	local function classifyEntity(model)
-		if not model or not model:IsA("Model") or not model.Parent then return "none" end
-		if model == plr.Character then return "none" end
-		if players:GetPlayerFromCharacter(model) then return "none" end
+	local function checkIsAnomaly(model)
+		if not model or not model:IsA("Model") or not model.Parent then return false end
+		if model == plr.Character then return false end
+		if players:GetPlayerFromCharacter(model) then return false end
 
-		local name = string.lower(model.Name)
-
-		if string.find(name, "inspector") or string.find(name, "killer") or string.find(name, "punisher") or string.find(name, "cleaner") then
-			return "inspector"
+		if model:GetAttribute("IsAnomaly") == true 
+		or model:GetAttribute("Anomaly") == true 
+		or model:GetAttribute("IsFake") == true 
+		or model:GetAttribute("Corrupted") == true
+		or model:GetAttribute("IsCorrupted") == true then
+			return true
 		end
 
-		local isAnomaly = model:GetAttribute("IsAnomaly") or model:GetAttribute("Anomaly") or model:GetAttribute("Corrupted") or model:GetAttribute("IsFake")
-		if isAnomaly == true then return "anomaly" end
-
-		if string.find(name, "anomaly") or string.find(name, "skinwalker") or string.find(name, "smiling") or string.find(name, "distorted") or string.find(name, "monster") or string.find(name, "fake") or string.find(name, "creature") then
-			return "anomaly"
+		if model:GetAttribute("RealCustomer") == false 
+		or model:GetAttribute("IsReal") == false 
+		or model:GetAttribute("IsHuman") == false then
+			return true
 		end
 
-		for _, desc in ipairs(model:GetDescendants()) do
-			if desc:IsA("BoolValue") or desc:IsA("StringValue") then
-				local dName = string.lower(desc.Name)
-				if string.find(dName, "anomaly") or string.find(dName, "corrupt") or string.find(dName, "fake") then
-					if desc.Value == true or desc.Value == "true" or desc.Value == "Anomaly" or desc.Value == "Corrupted" then
-						return "anomaly"
+		local mName = string.lower(model.Name)
+		if string.find(mName, "anomaly") or string.find(mName, "fake") or string.find(mName, "skinwalker") or string.find(mName, "smiling") or string.find(mName, "distorted") or string.find(mName, "monster") or string.find(mName, "creature") or string.find(mName, "inspector") or string.find(mName, "killer") then
+			return true
+		end
+
+		for _, v in ipairs(model:GetDescendants()) do
+			if v:IsA("ValueBase") then
+				local vName = string.lower(v.Name)
+				if string.find(vName, "anomaly") or string.find(vName, "fake") or string.find(vName, "corrupt") then
+					if v.Value == true or v.Value == "true" or v.Value == "Anomaly" or v.Value == "Corrupted" or v.Value == "Fake" then
+						return true
+					end
+				elseif string.find(vName, "real") or string.find(vName, "human") then
+					if v.Value == false or v.Value == "false" then
+						return true
 					end
 				end
 			end
-		end
 
-		if model:FindFirstChildOfClass("Humanoid") or model:FindFirstChild("Head") or string.find(name, "customer") or string.find(name, "npc") or string.find(name, "buyer") or string.find(name, "human") or string.find(name, "person") then
-			return "human"
-		end
-
-		return "none"
-	end
-
-	local function clearESP()
-		for model, data in pairs(activeESP) do
-			if data then
-				if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
-				if data.Billboard and data.Billboard.Parent then data.Billboard:Destroy() end
-			end
-		end
-		table.clear(activeESP)
-	end
-
-	local function createOrUpdateESP(model, category)
-		if not model or not model.Parent then return end
-
-		local head = model:FindFirstChild("Head") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
-		if not head then return end
-
-		local col = GREEN
-		local textTag = "🟢 HUMAN [SAFE]"
-		if category == "anomaly" then
-			col = RED; textTag = "🔴 ANOMALY! [DO NOT SERVE]"
-		elseif category == "inspector" then
-			col = ORANGE; textTag = "🟠 INSPECTOR! [RUN/HIDE]"
-		end
-
-		local distStr = ""
-		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-			local d = math.floor((head.Position - plr.Character.HumanoidRootPart.Position).Magnitude)
-			distStr = " (" .. d .. "m)"
-		end
-
-		local data = activeESP[model]
-
-		if not data or not data.Billboard or not data.Billboard.Parent then
-			local hl = Instance.new("Highlight")
-			hl.Name = "ShawarmaHighlightESP"
-			hl.Adornee = model
-			hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			hl.FillColor = col; hl.OutlineColor = col
-			hl.FillTransparency = 0.45; hl.OutlineTransparency = 0.1
-			pcall(function() hl.Parent = model end)
-
-			local bb = Instance.new("BillboardGui")
-			bb.Name = "ShawarmaTextESP"
-			bb.Adornee = head
-			bb.AlwaysOnTop = true
-			bb.Size = UDim2.new(0, 160, 0, 40)
-			bb.StudsOffset = Vector3.new(0, 2.5, 0)
-
-			local txt = Instance.new("TextLabel")
-			txt.Name = "Tag"
-			txt.Size = UDim2.new(1, 0, 1, 0)
-			txt.BackgroundTransparency = 1
-			txt.Text = textTag .. distStr
-			txt.TextColor3 = col
-			txt.TextSize = 13
-			txt.Font = Enum.Font.FredokaOne
-			txt.TextStrokeTransparency = 0
-			txt.TextStrokeColor3 = BLACK
-			txt.Parent = bb
-
-			pcall(function() bb.Parent = head end)
-			activeESP[model] = { Highlight = hl, Billboard = bb, Text = txt, Category = category }
-		else
-			data.Highlight.FillColor = col; data.Highlight.OutlineColor = col
-			data.Text.TextColor3 = col
-			data.Text.Text = textTag .. distStr
-		end
-	end
-
-	local function scanAndApplyESP()
-		if not espEnabled then clearESP() return end
-		local currentTargets = {}
-
-		for _, obj in ipairs(ws:GetDescendants()) do
-			if obj:IsA("Model") and obj ~= plr.Character then
-				local cat = classifyEntity(obj)
-				if cat == "human" or cat == "anomaly" or cat == "inspector" then
-					currentTargets[obj] = cat
-					createOrUpdateESP(obj, cat)
+			if v:IsA("Decal") and string.find(string.lower(v.Name), "face") then
+				if string.find(tostring(v.Texture), "0") or v.Transparency == 1 then
+					return true
 				end
 			end
 		end
 
-		for model, data in pairs(activeESP) do
-			if not currentTargets[model] or not model.Parent then
-				if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
-				if data.Billboard and data.Billboard.Parent then data.Billboard:Destroy() end
-				activeESP[model] = nil
-			end
-		end
+		return false
 	end
 
-	task.spawn(function()
-		while true do
-			if espEnabled then pcall(scanAndApplyESP) end
-			task.wait(0.3)
-		end
-	end)
+	local function isCustomerModel(model)
+		if not model or not model:IsA("Model") or not model.Parent then return false end
+		if model == plr.Character then return false end
+		if players:GetPlayerFromCharacter(model) then return false end
 
-	local lastAlertState = "none"
-	local function checkCurrentCustomer()
-		local detectedAnomaly, detectedInspector, detectedHuman = false, false, false
+		local mName = string.lower(model.Name)
+		if model:FindFirstChildOfClass("Humanoid") or model:FindFirstChild("Head") or string.find(mName, "customer") or string.find(mName, "npc") or string.find(mName, "buyer") or string.find(mName, "human") or string.find(mName, "person") or string.find(mName, "anomaly") or string.find(mName, "skinwalker") then
+			return true
+		end
+
+		return false
+	end
+
+	local function clearESP()
+		for model, hl in pairs(activeHighlights) do
+			if hl and hl.Parent then hl:Destroy() end
+		end
+		table.clear(activeHighlights)
+	end
+
+	local function applyBodyESP(model, isAnomalous)
+		if not model or not model.Parent then return end
+		local targetColor = isAnomalous and RED or GREEN
+
+		if activeHighlights[model] and activeHighlights[model].Parent then
+			local hl = activeHighlights[model]
+			hl.FillColor = targetColor
+			hl.OutlineColor = targetColor
+			return
+		end
+
+		local hl = Instance.new("Highlight")
+		hl.Name = "BodyESP"
+		hl.Adornee = model
+		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.FillColor = targetColor
+		hl.OutlineColor = targetColor
+		hl.FillTransparency = 0.40
+		hl.OutlineTransparency = 0.0
+
+		pcall(function() hl.Parent = model end)
+		activeHighlights[model] = hl
+	end
+
+	local function updateESPAndStatus()
+		if not espEnabled then
+			clearESP()
+			lblScan.Text = "esp disabled"
+			lblScan.TextColor3 = GRAY
+			return
+		end
+
+		local currentCustomers = {}
+		local foundAnomalyAtCounter = false
+		local foundHumanAtCounter = false
+
 		for _, obj in ipairs(ws:GetDescendants()) do
-			if obj:IsA("Model") and obj ~= plr.Character then
-				local cat = classifyEntity(obj)
-				if cat == "inspector" then detectedInspector = true
-				elseif cat == "anomaly" then detectedAnomaly = true
-				elseif cat == "human" then detectedHuman = true end
+			if obj:IsA("Model") and isCustomerModel(obj) then
+				currentCustomers[obj] = true
+				local anomalous = checkIsAnomaly(obj)
+				applyBodyESP(obj, anomalous)
+
+				if anomalous then foundAnomalyAtCounter = true
+				else foundHumanAtCounter = true end
 			end
 		end
 
-		if detectedInspector then
-			lblScan.Text = "INSPECTOR AT KIOSK!"; lblScan.TextColor3 = ORANGE
-			lblTarget.Text = "inspector (killer)"; lblTarget.TextColor3 = ORANGE
-			if lastAlertState ~= "inspector" then lastAlertState = "inspector"; el:Notify("DANGER!", "Inspector entity detected!", "err", 4) end
-		elseif detectedAnomaly then
-			lblScan.Text = "ANOMALY DETECTED!"; lblScan.TextColor3 = RED
-			lblTarget.Text = "anomaly (do not serve)"; lblTarget.TextColor3 = RED
-			if lastAlertState ~= "anomaly" then lastAlertState = "anomaly"; el:Notify("ANOMALY!", "Close shutter now!", "err", 3.5) end
-		elseif detectedHuman then
-			lblScan.Text = "safe customer"; lblScan.TextColor3 = GREEN
-			lblTarget.Text = "human (safe)"; lblTarget.TextColor3 = GREEN
-			if lastAlertState ~= "human" then lastAlertState = "human"; el:Notify("SAFE", "Normal customer. Safe to serve.", "ok", 2) end
+		if foundAnomalyAtCounter then
+			lblScan.Text = "ANOMALY (RED)"
+			lblScan.TextColor3 = RED
+		elseif foundHumanAtCounter then
+			lblScan.Text = "HUMAN (GREEN)"
+			lblScan.TextColor3 = GREEN
 		else
-			lblScan.Text = "no customer"; lblScan.TextColor3 = GRAY
-			lblTarget.Text = "counter empty"; lblTarget.TextColor3 = DIM
-			lastAlertState = "none"
+			lblScan.Text = "no customer"
+			lblScan.TextColor3 = DIM
+		end
+
+		for model, hl in pairs(activeHighlights) do
+			if not currentCustomers[model] or not model.Parent then
+				if hl and hl.Parent then hl:Destroy() end
+				activeHighlights[model] = nil
+			end
 		end
 	end
 
 	task.spawn(function()
 		while true do
-			if autoScan then pcall(checkCurrentCustomer) end
-			task.wait(0.5)
+			if espEnabled then pcall(updateESPAndStatus) end
+			task.wait(0.3)
 		end
 	end)
 
@@ -211,17 +175,11 @@ return function(king, cfg, el)
 	el:Divider(king)
 	el:Header(king, "visuals & esp")
 
-	el:Toggle("ESP Customers & Anomalies", king, false, function(v)
+	el:Toggle("ESP Body Outline & Fill", king, false, function(v)
 		espEnabled = v
 		if not v then clearESP() end
-		el:Notify("esp", v and "enabled (Green=Human, Red=Anomaly, Orange=Inspector)" or "disabled", "info", 2.2)
+		el:Notify("esp", v and "enabled (Green=Human, Red=Anomaly)" or "disabled", "info", 2.2)
 	end)
-
-	el:Toggle("Auto Scan Customer", king, true, function(v)
-		autoScan = v
-		el:Notify("auto scan", v and "enabled" or "disabled", "info", 1.8)
-	end)
-	autoScan = true
 
 	el:Divider(king)
 	el:Header(king, "player movement")
