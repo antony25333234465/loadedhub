@@ -1,4 +1,4 @@
---// BRAINROT HUB - loader
+--// LOADED HUB - loader
 --// same layout as the original: ui + elements + per game modules
 --// everything is fetched from the repo, so you only push files
 
@@ -31,7 +31,7 @@ function getgitpath(what)
 	return BASE
 end
 
-local FOLDER   = "BrainrotHub"
+local FOLDER   = "LoadedHub"
 local CFG_FILE = FOLDER .. "/Config.json"
 local VERSION  = "1.0"
 local DISCORD  = "discord.gg/yourserver"
@@ -198,7 +198,7 @@ end
 -- close the old one first, otherwise they stack up
 pcall(function()
 	local root = hui and hui() or coregui
-	local old = root:FindFirstChild("\0BrainrotHub")
+	local old = root:FindFirstChild("\0LoadedHub")
 	if old then old:Destroy() end
 end)
 
@@ -364,6 +364,9 @@ H.placeLabel.Text = "PlaceId: " .. tostring(game.PlaceId)
 --------------------------------------------------------------
 -- REMOTE DATA
 --------------------------------------------------------------
+-- light up the strip at the bottom while the rest is downloading
+pcall(function() ui:SetAttribute("busy", true) end)
+
 local elementsSrc = fetch(getgitpath("src") .. "elements.lua", FOLDER .. "/src_elements.lua")
 if not elementsSrc then
 	warn("[hub] couldnt fetch elements.lua")
@@ -376,6 +379,8 @@ local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/cre
 
 local gameList    = decode(gameListRaw, "gameslist.json", {})
 local creditsList = decode(creditsRaw,   "credits.json",   {})
+
+pcall(function() ui:SetAttribute("busy", false) end)
 
 -- tells me if the game im in shows up on the list
 local function gameFromList(pid)
@@ -662,6 +667,6 @@ task.delay(0.4, function()
 		getgenv().HUB_FROM_TP = nil
 		elements:Notify("back in", "loaded on its own after the teleport", "ok")
 	else
-		elements:Notify("brainrot hub", "right shift to hide", "ok")
+		elements:Notify("loaded hub", "right shift to hide", "ok")
 	end
 end)
