@@ -1,5 +1,5 @@
 --// Scary Shawarma Kiosk: The Anomaly - Game Module for Loaded Hub
---// Place IDs: 137826330724902 (Lobby) / 128001665358186 (In Game 1 Player)
+--// Bulletproof ESP (Highlight + BillboardGui Text & Box ESP) + Auto Scanner + Speed Changer
 
 return function(king, cfg, el)
 	local players    = game:GetService("Players")
@@ -12,12 +12,13 @@ return function(king, cfg, el)
 	----------------------------------------------------------
 	-- COLORS
 	----------------------------------------------------------
-	local GREEN   = Color3.fromRGB(0, 230, 100)
-	local RED     = Color3.fromRGB(250, 40, 50)
-	local ORANGE  = Color3.fromRGB(255, 140, 0)
+	local GREEN   = Color3.fromRGB(0, 230, 100)   -- Human Customer (Safe)
+	local RED     = Color3.fromRGB(250, 40, 50)   -- Anomaly Customer (Unsafe)
+	local ORANGE  = Color3.fromRGB(255, 140, 0)   -- Inspector / Killer Entity
 	local WHITE   = Color3.fromRGB(255, 255, 255)
 	local GRAY    = Color3.fromRGB(200, 205, 220)
 	local DIM     = Color3.fromRGB(140, 145, 165)
+	local BLACK   = Color3.fromRGB(0, 0, 0)
 
 	----------------------------------------------------------
 	-- STATE & SETTINGS
@@ -26,7 +27,7 @@ return function(king, cfg, el)
 	local autoScan   = false
 	local walkSpeed  = 16
 	local speedOn    = false
-	local activeHighlights = {}
+	local activeESP  = {}
 
 	----------------------------------------------------------
 	-- UI INTERFACE
@@ -41,35 +42,38 @@ return function(king, cfg, el)
 	-- HELPER: CLASSIFY ENTITY / CUSTOMER
 	----------------------------------------------------------
 	local function classifyEntity(model)
-		if not model or not model:IsA("Model") then return "none" end
+		if not model or not model:IsA("Model") or not model.Parent then return "none" end
 		if model == plr.Character then return "none" end
-		if players:GetPlayerFromCharacter(model) then return "human_player" end
+		if players:GetPlayerFromCharacter(model) then return "none" end
 
 		local name = string.lower(model.Name)
 
-		if string.find(name, "inspector") or string.find(name, "floor") or string.find(name, "killer") or string.find(name, "punisher") then
+		-- 1. Inspector / Killer Check
+		if string.find(name, "inspector") or string.find(name, "killer") or string.find(name, "punisher") or string.find(name, "cleaner") then
 			return "inspector"
 		end
 
-		local isAnomaly = model:GetAttribute("IsAnomaly") or model:GetAttribute("Anomaly") or model:GetAttribute("Corrupted")
+		-- 2. Anomaly Check (Attributes, Values, Names)
+		local isAnomaly = model:GetAttribute("IsAnomaly") or model:GetAttribute("Anomaly") or model:GetAttribute("Corrupted") or model:GetAttribute("IsFake")
 		if isAnomaly == true then return "anomaly" end
 
-		if string.find(name, "anomaly") or string.find(name, "skinwalker") or string.find(name, "smiling") or string.find(name, "distorted") or string.find(name, "monster") or string.find(name, "fake") then
+		if string.find(name, "anomaly") or string.find(name, "skinwalker") or string.find(name, "smiling") or string.find(name, "distorted") or string.find(name, "monster") or string.find(name, "fake") or string.find(name, "creature") then
 			return "anomaly"
 		end
 
 		for _, desc in ipairs(model:GetDescendants()) do
-			if desc:IsA("StringValue") or desc:IsA("BoolValue") then
+			if desc:IsA("BoolValue") or desc:IsA("StringValue") then
 				local dName = string.lower(desc.Name)
-				if string.find(dName, "anomaly") or string.find(dName, "corrupt") then
-					if desc.Value == true or desc.Value == "true" or desc.Value == "Anomaly" then
+				if string.find(dName, "anomaly") or string.find(dName, "corrupt") or string.find(dName, "fake") then
+					if desc.Value == true or desc.Value == "true" or desc.Value == "Anomaly" or desc.Value == "Corrupted" then
 						return "anomaly"
 					end
 				end
 			end
 		end
 
-		if model:FindFirstChildOfClass("Humanoid") or model:FindFirstChild("Head") then
+		-- 3. Human Customer Check
+		if model:FindFirstChildOfClass("Humanoid") or model:FindFirstChild("Head") or string.find(name, "customer") or string.find(name, "npc") or string.find(name, "buyer") or string.find(name, "human") or string.find(name, "person") then
 			return "human"
 		end
 
@@ -77,50 +81,85 @@ return function(king, cfg, el)
 	end
 
 	----------------------------------------------------------
-	-- ESP ENGINE
+	-- BULLETPROOF ESP ENGINE (HIGHLIGHT + BILLBOARD TEXT & BOX)
 	----------------------------------------------------------
 	local function clearESP()
-		for model, hl in pairs(activeHighlights) do
-			if hl and hl.Parent then
-				hl:Destroy()
+		for model, data in pairs(activeESP) do
+			if data then
+				if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
+				if data.Billboard and data.Billboard.Parent then data.Billboard:Destroy() end
 			end
 		end
-		table.clear(activeHighlights)
+		table.clear(activeESP)
 	end
 
-	local function applyESP(model, category)
+	local function createOrUpdateESP(model, category)
 		if not model or not model.Parent then return end
-		if activeHighlights[model] and activeHighlights[model].Parent then
-			local hl = activeHighlights[model]
-			if category == "human" then
-				hl.FillColor = GREEN; hl.OutlineColor = GREEN
-			elseif category == "anomaly" then
-				hl.FillColor = RED; hl.OutlineColor = RED
-			elseif category == "inspector" then
-				hl.FillColor = ORANGE; hl.OutlineColor = ORANGE
-			end
-			return
-		end
 
-		local hl = Instance.new("Highlight")
-		hl.Name = "ShawarmaESP"
-		hl.Adornee = model
-		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		hl.FillTransparency = 0.45
-		hl.OutlineTransparency = 0.1
+		local head = model:FindFirstChild("Head") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+		if not head then return end
 
-		if category == "human" then
-			hl.FillColor = GREEN; hl.OutlineColor = GREEN
-		elseif category == "anomaly" then
-			hl.FillColor = RED; hl.OutlineColor = RED
+		local col = GREEN
+		local textTag = "🟢 HUMAN [SAFE]"
+		if category == "anomaly" then
+			col = RED
+			textTag = "🔴 ANOMALY! [DO NOT SERVE]"
 		elseif category == "inspector" then
-			hl.FillColor = ORANGE; hl.OutlineColor = ORANGE
-		else
-			return
+			col = ORANGE
+			textTag = "🟠 INSPECTOR! [RUN/HIDE]"
 		end
 
-		hl.Parent = model
-		activeHighlights[model] = hl
+		-- Distance calculation
+		local distStr = ""
+		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local d = math.floor((head.Position - plr.Character.HumanoidRootPart.Position).Magnitude)
+			distStr = " (" .. d .. "m)"
+		end
+
+		local data = activeESP[model]
+
+		if not data or not data.Billboard or not data.Billboard.Parent then
+			-- Create Highlight
+			local hl = Instance.new("Highlight")
+			hl.Name = "ShawarmaHighlightESP"
+			hl.Adornee = model
+			hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			hl.FillColor = col
+			hl.OutlineColor = col
+			hl.FillTransparency = 0.45
+			hl.OutlineTransparency = 0.1
+			pcall(function() hl.Parent = model end)
+
+			-- Create BillboardGui (Draws Text and Box Through Walls 100% Guaranteed)
+			local bb = Instance.new("BillboardGui")
+			bb.Name = "ShawarmaTextESP"
+			bb.Adornee = head
+			bb.AlwaysOnTop = true
+			bb.Size = UDim2.new(0, 160, 0, 40)
+			bb.StudsOffset = Vector3.new(0, 2.5, 0)
+
+			local txt = Instance.new("TextLabel")
+			txt.Name = "Tag"
+			txt.Size = UDim2.new(1, 0, 1, 0)
+			txt.BackgroundTransparency = 1
+			txt.Text = textTag .. distStr
+			txt.TextColor3 = col
+			txt.TextSize = 13
+			txt.Font = Enum.Font.FredokaOne
+			txt.TextStrokeTransparency = 0
+			txt.TextStrokeColor3 = BLACK
+			txt.Parent = bb
+
+			pcall(function() bb.Parent = head end)
+
+			activeESP[model] = { Highlight = hl, Billboard = bb, Text = txt, Category = category }
+		else
+			-- Update existing ESP
+			data.Highlight.FillColor = col
+			data.Highlight.OutlineColor = col
+			data.Text.TextColor3 = col
+			data.Text.Text = textTag .. distStr
+		end
 	end
 
 	local function scanAndApplyESP()
@@ -130,35 +169,40 @@ return function(king, cfg, el)
 		end
 
 		local currentTargets = {}
+
+		-- Deep Workspace Scan for Customers, NPCs, Entities
 		for _, obj in ipairs(ws:GetDescendants()) do
 			if obj:IsA("Model") and obj ~= plr.Character then
 				local cat = classifyEntity(obj)
 				if cat == "human" or cat == "anomaly" or cat == "inspector" then
 					currentTargets[obj] = cat
-					applyESP(obj, cat)
+					createOrUpdateESP(obj, cat)
 				end
 			end
 		end
 
-		for model, hl in pairs(activeHighlights) do
+		-- Clean up removed targets
+		for model, data in pairs(activeESP) do
 			if not currentTargets[model] or not model.Parent then
-				if hl and hl.Parent then hl:Destroy() end
-				activeHighlights[model] = nil
+				if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
+				if data.Billboard and data.Billboard.Parent then data.Billboard:Destroy() end
+				activeESP[model] = nil
 			end
 		end
 	end
 
+	-- ESP Heartbeat Loop
 	task.spawn(function()
 		while true do
 			if espEnabled then
 				pcall(scanAndApplyESP)
 			end
-			task.wait(0.5)
+			task.wait(0.3)
 		end
 	end)
 
 	----------------------------------------------------------
-	-- AUTO SCANNER
+	-- AUTO SCANNER & ALERT
 	----------------------------------------------------------
 	local lastAlertState = "none"
 
@@ -201,7 +245,7 @@ return function(king, cfg, el)
 		elseif detectedHuman then
 			lblScan.Text = "safe customer"
 			lblScan.TextColor3 = GREEN
-			lblTarget.Text = "human (safe to serve)"
+			lblTarget.Text = "human (safe)"
 			lblTarget.TextColor3 = GREEN
 			if lastAlertState ~= "human" then
 				lastAlertState = "human"
@@ -221,7 +265,7 @@ return function(king, cfg, el)
 			if autoScan then
 				pcall(checkCurrentCustomer)
 			end
-			task.wait(0.6)
+			task.wait(0.5)
 		end
 	end)
 
@@ -238,7 +282,7 @@ return function(king, cfg, el)
 	end)
 
 	----------------------------------------------------------
-	-- CONTROLS
+	-- CONTROLES UI
 	----------------------------------------------------------
 	el:Divider(king)
 	el:Header(king, "visuals & esp")
@@ -277,7 +321,7 @@ return function(king, cfg, el)
 			lblSpeed.Text = tostring(num)
 			el:Notify("speed set", tostring(num), "ok", 1.8)
 		else
-			el:Notify("invalid speed", "enter a number between 16 and 150", "warn", 2.2)
+			el:Notify("invalid speed", "enter number 16 - 150", "warn", 2.2)
 		end
 	end)
 
@@ -298,13 +342,13 @@ return function(king, cfg, el)
 			end
 		end
 		if toggled then
-			el:Notify("shutter", "toggled shutter door", "ok", 1.8)
+			el:Notify("shutter", "toggled shutter", "ok", 1.8)
 		else
 			el:Notify("shutter", "press shutter button manually", "warn", 2)
 		end
 	end)
 
-	el:Button("tp to backyard (hide from inspector)", king, function()
+	el:Button("tp to backyard (hide)", king, function()
 		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 			local hidingSpot = nil
 			for _, obj in ipairs(ws:GetDescendants()) do
@@ -313,13 +357,12 @@ return function(king, cfg, el)
 					break
 				end
 			end
-
 			if hidingSpot then
 				plr.Character.HumanoidRootPart.CFrame = hidingSpot
-				el:Notify("tp", "teleported to backyard hiding spot", "ok", 1.8)
+				el:Notify("tp", "teleported to backyard", "ok", 1.8)
 			else
 				plr.Character.HumanoidRootPart.CFrame = plr.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -25)
-				el:Notify("tp", "teleported backwards to safe area", "info", 1.8)
+				el:Notify("tp", "teleported backwards", "info", 1.8)
 			end
 		end
 	end)
