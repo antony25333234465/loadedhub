@@ -1,6 +1,6 @@
 --// LOADED HUB - loader
---// Stud UI Pack Edition - 100% Working Universal Aimbot (FFA & Team Games Supported)
---// Features: Instant/Smooth Head Lock, FOV Circle, Team Check Toggle, Camera Priority Bind
+--// Stud UI Pack Edition - Anti-Jitter Universal Aimbot (Sticky Target Lock)
+--// Features: Sticky Target Lock (No Screen Shake/Jitter), FOV Circle, FFA Support
 
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
@@ -69,7 +69,7 @@ if hasFS then
 		if not isfile(CFG_FILE) then
 			writefile(CFG_FILE, httpservice:JSONEncode(DEFAULTS))
 		else
-			local dec = httpservice:JSONDecode(readfile(CFG_FILE))
+			local dec = httpservice:JSONEncode(readfile(CFG_FILE))
 			local changed = false
 			for sec, vals in pairs(DEFAULTS) do
 				if type(dec[sec]) ~= "table" then dec[sec] = {} changed = true end
@@ -85,7 +85,7 @@ end
 local function readCfg()
 	if not hasFS then return DEFAULTS end
 	local ok, dec = pcall(function()
-		return httpservice:JSONDecode(readfile(CFG_FILE))
+		return httpservice:JSONEncode(readfile(CFG_FILE))
 	end)
 	return (ok and type(dec) == "table") and dec or DEFAULTS
 end
@@ -444,16 +444,17 @@ if loadedModule then
 end
 
 --------------------------------------------------------------
--- UNIVERSAL AIMBOT & FOV ENGINE (100% WORKING FFA & TEAM SUPPORT)
+-- UNIVERSAL AIMBOT & FOV ENGINE (STICKY TARGET LOCK - NO JITTER / SCREEN SHAKE)
 --------------------------------------------------------------
 local camera = workspace.CurrentCamera
 local aimbotEnabled = false
 local fovEnabled    = false
 local fovRadius     = 150
-local aimSmooth     = 1.0     -- 1.0 = Instant Head Lock
+local aimSmooth     = 1.0     -- 1.0 = Instant Head Lock, 0.2 = Smooth
 local aimPart       = "Head"
-local teamCheck     = false   -- Disabled by default so it works in FFA!
+local teamCheck     = false   -- Off by default for FFA compatibility!
 local isAiming      = false
+local lockedTargetPart = nil   -- Sticky Lock (Eliminates Target Swapping Shaking!)
 
 -- Drawing FOV Circle
 local fovCircle = nil
@@ -486,7 +487,7 @@ runservice.RenderStepped:Connect(function()
 end)
 
 local function getTargetHeadPart(model)
-	if not model or not model:IsA("Model") then return nil end
+	if not model or not model:IsA("Model") or not model.Parent then return nil end
 	local part = model:FindFirstChild(aimPart)
 	if not part then
 		part = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso")
@@ -494,12 +495,29 @@ local function getTargetHeadPart(model)
 	return part
 end
 
+local function isValidLockedTarget(part)
+	if not part or not part.Parent then return false end
+	local model = part.Parent
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 then return false end
+
+	local mousePos = userinputservice:GetMouseLocation()
+	local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+	if not onScreen then return false end
+
+	-- Allow 1.6x FOV margin while tracking target so lock stays sticky
+	local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+	if dist > (fovRadius * 1.6) then return false end
+
+	return true
+end
+
 local function getClosestTargetToMouse()
 	local closestPart = nil
 	local shortestDist = fovRadius
 	local mousePos = userinputservice:GetMouseLocation()
 
-	-- 1. Scan Players (FFA & Team Games)
+	-- 1. Scan Players
 	for _, p in ipairs(players:GetPlayers()) do
 		if p ~= plr and p.Character then
 			local hum = p.Character:FindFirstChildOfClass("Humanoid")
@@ -526,7 +544,7 @@ local function getClosestTargetToMouse()
 		end
 	end
 
-	-- 2. Scan NPC / Bots in Workspace
+	-- 2. Scan NPCs / Bots
 	if not closestPart then
 		for _, obj in ipairs(workspace:GetDescendants()) do
 			if obj:IsA("Model") and obj ~= plr.Character and not players:GetPlayerFromCharacter(obj) then
@@ -551,33 +569,41 @@ local function getClosestTargetToMouse()
 	return closestPart
 end
 
--- Aimbot Key / Mouse Input (RMB Hold to Lock)
+-- Aimbot Key / Mouse Input (RMB Hold with Sticky Lock)
 userinputservice.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = true
+		lockedTargetPart = getClosestTargetToMouse() -- Lock onto target!
 	end
 end)
 
 userinputservice.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = false
+		lockedTargetPart = nil -- Release target lock!
 	end
 end)
 
--- High Priority RenderStep Lock (Camera Priority Lock)
-runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function()
+-- High Priority Anti-Jitter Camera RenderStep
+runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
 	if aimbotEnabled and isAiming then
-		local targetPart = getClosestTargetToMouse()
-		if targetPart then
-			local targetPos = targetPart.Position
+		-- Validate or acquire target lock
+		if not isValidLockedTarget(lockedTargetPart) then
+			lockedTargetPart = getClosestTargetToMouse()
+		end
+
+		if lockedTargetPart then
+			local targetPos = lockedTargetPart.Position
 			local camPos = camera.CFrame.Position
 			local desiredCF = CFrame.new(camPos, targetPos)
 
 			if aimSmooth >= 0.95 then
 				camera.CFrame = desiredCF
 			else
-				camera.CFrame = camera.CFrame:Lerp(desiredCF, aimSmooth)
+				-- Framerate-independent smooth interpolation (No Jitter)
+				local lerpFactor = math.clamp(dt * (aimSmooth * 28), 0.05, 1)
+				camera.CFrame = camera.CFrame:Lerp(desiredCF, lerpFactor)
 			end
 		end
 	end
@@ -589,6 +615,7 @@ elements:Header(UContainer, "universal aimbot & fov")
 
 elements:Toggle("Aimbot (Hold Right Click)", UContainer, false, function(v)
 	aimbotEnabled = v
+	if not v then lockedTargetPart = nil end
 	elements:Notify("aimbot", v and "enabled (Hold RMB to Lock Head)" or "disabled", "info", 2)
 end)
 
