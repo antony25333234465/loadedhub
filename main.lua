@@ -53,6 +53,23 @@ local DEFAULTS = {
 		sounds = true,
 		tp_step = 160,
 	},
+	universal = {
+		aimbot        = false,
+		wall_check    = true,
+		drop_on_loss  = true,
+		fov_circle    = false,
+		team_check    = false,
+		fov_radius    = 150,
+		aim_smooth    = 1.0,
+		aim_part      = "Head",
+		esp           = false,
+		esp_chams     = true,
+		esp_names     = true,
+		esp_health    = true,
+		esp_tracers   = false,
+		esp_team      = false,
+		esp_dist      = 1000,
+	},
 	farm = {
 		stomp = 1.2,
 		claim_timeout = 7,
@@ -472,25 +489,68 @@ end
 
 --------------------------------------------------------------
 -- UNIVERSAL AIMBOT + ESP
--- v4 - rewrote the target scanning. the old one called
--- workspace:GetDescendants() from inside the renderstep, which on a
--- 4k part map is over a millisecond every single frame. thats where
--- the stutter came from. now theres a cached npc list that a
--- DescendantAdded/Removing pair keeps up to date, so the hot path
--- only ever walks a handful of models.
+-- v5 - everything in here now persists. the values get read out of
+-- Config.json before a single control is built, so the toggles come
+-- up already flipped instead of snapping into place a frame later.
+--
+-- v4 was the perf pass: the old code called workspace:GetDescendants()
+-- from inside the renderstep, over a millisecond every frame on a 4k
+-- part map. thats gone, theres a cached npc registry now.
 --------------------------------------------------------------
+local UCFG = readCfg().universal or {}
+
+-- little helpers so a missing or half written config cant nil out a
+-- toggle. happened once when i added a key and old configs lacked it
+local function ub(key, fallback)
+	local v = UCFG[key]
+	if v == nil then return fallback end
+	return v == true
+end
+
+local function un(key, fallback, lo, hi)
+	local v = tonumber(UCFG[key])
+	if not v then return fallback end
+	if lo and v < lo then return fallback end
+	if hi and v > hi then return fallback end
+	return v
+end
+
+local function us(key, fallback, allowed)
+	local v = UCFG[key]
+	if type(v) ~= "string" then return fallback end
+	if allowed then
+		for _, a in ipairs(allowed) do
+			if a == v then return v end
+		end
+		return fallback
+	end
+	return v
+end
+
+-- saveKey lives further down with the settings tab, but universal
+-- needs it up here. so it gets its own tiny one
+local function saveUni(key, value)
+	if not hasFS then return end
+	pcall(function()
+		local dec = readCfg()
+		dec.universal = dec.universal or {}
+		dec.universal[key] = value
+		writefile(CFG_FILE, httpservice:JSONEncode(dec))
+	end)
+end
+
 local camera = workspace.CurrentCamera
-local aimbotEnabled = false
-local fovEnabled    = false
-local fovRadius     = 150
-local aimSmooth     = 1.0
-local aimPart       = "Head"
-local teamCheck     = false
+local aimbotEnabled = ub("aimbot", false)
+local fovEnabled    = ub("fov_circle", false)
+local fovRadius     = un("fov_radius", 150, 30, 500)
+local aimSmooth     = un("aim_smooth", 1.0, 0.1, 1.0)
+local aimPart       = us("aim_part", "Head", {"Head", "HumanoidRootPart", "Torso"})
+local teamCheck     = ub("team_check", false)
 local isAiming      = false
 local lockedTargetPart = nil
 
-local wallCheck  = true
-local dropOnLoss = true
+local wallCheck  = ub("wall_check", true)
+local dropOnLoss = ub("drop_on_loss", true)
 
 -- pulling these out of the global table once. inside a renderstep
 -- every _G lookup counts
@@ -779,13 +839,13 @@ end)
 -- highlights for the body, billboard for the text. tried Drawing
 -- boxes first, they fight the camera every frame and wobble.
 --------------------------------------------------------------
-local espEnabled   = false
-local espChams     = true
-local espName      = true
-local espHealth    = true
-local espTracer    = false
-local espTeamCheck = false
-local espMaxDist   = 1000
+local espEnabled   = ub("esp", false)
+local espChams     = ub("esp_chams", true)
+local espName      = ub("esp_names", true)
+local espHealth    = ub("esp_health", true)
+local espTracer    = ub("esp_tracers", false)
+local espTeamCheck = ub("esp_team", false)
+local espMaxDist   = un("esp_dist", 1000, 50, 10000)
 
 local espFolder = Instance.new("Folder")
 espFolder.Name = "\0LH_esp"
@@ -1055,64 +1115,79 @@ end
 
 --------------------------------------------------------------
 -- UNIVERSAL TAB UI
+-- every control writes its value straight to Config.json, and every
+-- one of them starts from what was in there. the refs go in a table
+-- so the load button can push values back into the widgets
 --------------------------------------------------------------
 local UContainer = Sections.Universal.Container
+local W = {}   -- widget handles, keyed the same as the config
 
 elements:Header(UContainer, "aimbot")
 
-elements:Toggle("Aimbot (Hold Right Click)", UContainer, false, function(v)
+local lblCfg = elements:Stat(UContainer, "config",
+	hasFS and "saved automatically" or "no filesystem", hasFS and "ok" or "err")
+
+W.aimbot = elements:Toggle("Aimbot (Hold Right Click)", UContainer, aimbotEnabled, function(v)
 	aimbotEnabled = v
 	if not v then lockedTargetPart = nil end
+	saveUni("aimbot", v)
 	elements:Notify("aimbot", v and "hold RMB to lock" or "disabled", "info", 2)
 end)
 
-elements:Toggle("Wall Check (ignore behind walls)", UContainer, true, function(v)
+W.wall_check = elements:Toggle("Wall Check (ignore behind walls)", UContainer, wallCheck, function(v)
 	wallCheck = v
+	saveUni("wall_check", v)
 	elements:Notify("wall check",
 		v and "visible targets only" or "will lock through walls",
 		v and "ok" or "warn", 2.4)
 end)
 
-elements:Toggle("Drop target when it hides", UContainer, true, function(v)
+W.drop_on_loss = elements:Toggle("Drop target when it hides", UContainer, dropOnLoss, function(v)
 	dropOnLoss = v
+	saveUni("drop_on_loss", v)
 end)
 
-elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
+W.fov_circle = elements:Toggle("Draw FOV Circle", UContainer, fovEnabled, function(v)
 	fovEnabled = v
 	if fovCircle and not v then fovCircle.Visible = false end
+	saveUni("fov_circle", v)
 end)
 
-elements:Toggle("Team Check (off = FFA)", UContainer, false, function(v)
+W.team_check = elements:Toggle("Team Check (off = FFA)", UContainer, teamCheck, function(v)
 	teamCheck = v
+	saveUni("team_check", v)
 end)
 
 elements:Divider(UContainer)
 elements:Header(UContainer, "aimbot settings")
 
-elements:Textbox("FOV Radius (30 - 500)", UContainer, tostring(fovRadius), function(txt)
+W.fov_radius = elements:Textbox("FOV Radius (30 - 500)", UContainer, tostring(fovRadius), function(txt)
 	local n = tonumber(txt)
 	if n and n >= 30 and n <= 500 then
 		fovRadius = n
 		if fovCircle then fovCircle.Radius = n end
+		saveUni("fov_radius", n)
 		elements:Notify("fov set", tostring(n), "ok", 1.8)
 	else
 		elements:Notify("invalid fov", "enter 30 - 500", "warn", 2)
 	end
 end)
 
-elements:Textbox("Aim Speed (1.0 instant, 0.2 smooth)", UContainer, tostring(aimSmooth), function(txt)
+W.aim_smooth = elements:Textbox("Aim Speed (1.0 instant, 0.2 smooth)", UContainer, tostring(aimSmooth), function(txt)
 	local n = tonumber(txt)
 	if n and n >= 0.1 and n <= 1.0 then
 		aimSmooth = n
+		saveUni("aim_smooth", n)
 		elements:Notify("aim speed", tostring(n), "ok", 1.8)
 	else
 		elements:Notify("invalid speed", "enter 0.1 - 1.0", "warn", 2)
 	end
 end)
 
-elements:Textbox("Aim Part (Head / HumanoidRootPart)", UContainer, aimPart, function(txt)
+W.aim_part = elements:Textbox("Aim Part (Head / HumanoidRootPart)", UContainer, aimPart, function(txt)
 	if txt == "Head" or txt == "HumanoidRootPart" or txt == "Torso" then
 		aimPart = txt
+		saveUni("aim_part", txt)
 		elements:Notify("aim part", txt, "ok", 1.8)
 	else
 		elements:Notify("invalid part", "Head / HumanoidRootPart / Torso", "warn", 2)
@@ -1122,35 +1197,46 @@ end)
 elements:Divider(UContainer)
 elements:Header(UContainer, "esp / wallhack")
 
-elements:Toggle("ESP", UContainer, false, function(v)
+W.esp = elements:Toggle("ESP", UContainer, espEnabled, function(v)
 	espEnabled = v
 	if not v then
 		setTracers(false)
 		clearAllEsp()
 	end
+	saveUni("esp", v)
 	elements:Notify("esp", v and "enabled" or "disabled", "info", 1.8)
 end)
 
-elements:Toggle("Chams (see through walls)", UContainer, true, function(v)
+W.esp_chams = elements:Toggle("Chams (see through walls)", UContainer, espChams, function(v)
 	espChams = v
 	if not v then
 		for _, e in pairs(espCache) do if e.hl then e.hl.Enabled = false end end
 	end
+	saveUni("esp_chams", v)
 end)
 
-elements:Toggle("Names", UContainer, true, function(v) espName = v end)
-elements:Toggle("Health + distance", UContainer, true, function(v) espHealth = v end)
+W.esp_names = elements:Toggle("Names", UContainer, espName, function(v)
+	espName = v
+	saveUni("esp_names", v)
+end)
 
-elements:Toggle("Tracers", UContainer, false, function(v)
+W.esp_health = elements:Toggle("Health + distance", UContainer, espHealth, function(v)
+	espHealth = v
+	saveUni("esp_health", v)
+end)
+
+W.esp_tracers = elements:Toggle("Tracers", UContainer, espTracer, function(v)
 	setTracers(v)
+	saveUni("esp_tracers", v)
 end)
 
-elements:Toggle("ESP Team Check", UContainer, false, function(v)
+W.esp_team = elements:Toggle("ESP Team Check", UContainer, espTeamCheck, function(v)
 	espTeamCheck = v
 	clearAllEsp()
+	saveUni("esp_team", v)
 end)
 
-elements:Textbox("ESP max distance", UContainer, tostring(espMaxDist), function(txt)
+W.esp_dist = elements:Textbox("ESP max distance", UContainer, tostring(espMaxDist), function(txt)
 	local n = tonumber(txt)
 	if not n or n < 50 or n > 10000 then
 		return elements:Notify("invalid", "enter 50 - 10000", "warn", 2)
@@ -1159,8 +1245,195 @@ elements:Textbox("ESP max distance", UContainer, tostring(espMaxDist), function(
 	for _, e in pairs(espCache) do
 		if e.tag then e.tag.MaxDistance = n end
 	end
+	saveUni("esp_dist", n)
 	elements:Notify("esp range", n .. " studs", "ok", 2)
 end)
+
+--------------------------------------------------------------
+-- CONFIG
+-- pushing a value back into a widget is the fiddly part. Toggle
+-- hands back {Set,Get} and Textbox hands back the TextBox itself,
+-- so they need different treatment
+--------------------------------------------------------------
+local UNI_DEFAULTS = {
+	aimbot = false, wall_check = true, drop_on_loss = true,
+	fov_circle = false, team_check = false,
+	fov_radius = 150, aim_smooth = 1.0, aim_part = "Head",
+	esp = false, esp_chams = true, esp_names = true,
+	esp_health = true, esp_tracers = false, esp_team = false,
+	esp_dist = 1000,
+}
+
+-- applies a whole table to the live variables AND to the widgets.
+-- silent = dont fire the callbacks, we already did the work here
+local function applyUniversal(t)
+	if type(t) ~= "table" then return false end
+
+	local function b(k, cur) local v = t[k] if v == nil then return cur end return v == true end
+	local function n(k, cur, lo, hi)
+		local v = tonumber(t[k])
+		if not v or (lo and v < lo) or (hi and v > hi) then return cur end
+		return v
+	end
+
+	aimbotEnabled = b("aimbot", aimbotEnabled)
+	wallCheck     = b("wall_check", wallCheck)
+	dropOnLoss    = b("drop_on_loss", dropOnLoss)
+	fovEnabled    = b("fov_circle", fovEnabled)
+	teamCheck     = b("team_check", teamCheck)
+	fovRadius     = n("fov_radius", fovRadius, 30, 500)
+	aimSmooth     = n("aim_smooth", aimSmooth, 0.1, 1.0)
+	if t.aim_part == "Head" or t.aim_part == "HumanoidRootPart" or t.aim_part == "Torso" then
+		aimPart = t.aim_part
+	end
+
+	espChams    = b("esp_chams", espChams)
+	espName     = b("esp_names", espName)
+	espHealth   = b("esp_health", espHealth)
+	espTeamCheck= b("esp_team", espTeamCheck)
+	espMaxDist  = n("esp_dist", espMaxDist, 50, 10000)
+
+	-- these two own live objects, so they go through their setters
+	local wantEsp = b("esp", espEnabled)
+	if wantEsp ~= espEnabled then
+		espEnabled = wantEsp
+		if not wantEsp then clearAllEsp() end
+	end
+	setTracers(b("esp_tracers", espTracer))
+
+	if fovCircle then
+		fovCircle.Radius = fovRadius
+		if not fovEnabled then fovCircle.Visible = false end
+	end
+	for _, e in pairs(espCache) do
+		if e.tag then e.tag.MaxDistance = espMaxDist end
+	end
+	if not aimbotEnabled then lockedTargetPart = nil end
+
+	-- now move the widgets so the panel matches reality
+	local function setTog(key, val)
+		local w = W[key]
+		if w and w.Set then pcall(w.Set, val) end
+	end
+	local function setBox(key, val)
+		local w = W[key]
+		if w and w.Text ~= nil then pcall(function() w.Text = tostring(val) end) end
+	end
+
+	setTog("aimbot", aimbotEnabled)
+	setTog("wall_check", wallCheck)
+	setTog("drop_on_loss", dropOnLoss)
+	setTog("fov_circle", fovEnabled)
+	setTog("team_check", teamCheck)
+	setTog("esp", espEnabled)
+	setTog("esp_chams", espChams)
+	setTog("esp_names", espName)
+	setTog("esp_health", espHealth)
+	setTog("esp_tracers", espTracer)
+	setTog("esp_team", espTeamCheck)
+
+	setBox("fov_radius", fovRadius)
+	setBox("aim_smooth", aimSmooth)
+	setBox("aim_part", aimPart)
+	setBox("esp_dist", espMaxDist)
+
+	return true
+end
+
+local function currentUniversal()
+	return {
+		aimbot = aimbotEnabled, wall_check = wallCheck,
+		drop_on_loss = dropOnLoss, fov_circle = fovEnabled,
+		team_check = teamCheck, fov_radius = fovRadius,
+		aim_smooth = aimSmooth, aim_part = aimPart,
+		esp = espEnabled, esp_chams = espChams, esp_names = espName,
+		esp_health = espHealth, esp_tracers = espTracer,
+		esp_team = espTeamCheck, esp_dist = espMaxDist,
+	}
+end
+
+elements:Divider(UContainer)
+elements:Header(UContainer, "config")
+
+elements:Label(UContainer,
+	"everything above saves on its own. these are here for when you "
+	.. "want to force it, undo a mess, or move the setup to another pc.")
+
+elements:Button("save now", UContainer, function()
+	if not hasFS then
+		return elements:Notify("cant save", "your executor has no file access", "err", 3)
+	end
+	local ok = pcall(function()
+		local dec = readCfg()
+		dec.universal = currentUniversal()
+		writefile(CFG_FILE, httpservice:JSONEncode(dec))
+	end)
+	lblCfg.Text = ok and "saved" or "save failed"
+	elements:Notify(ok and "saved" or "failed",
+		ok and "universal config written" or "couldnt write the file",
+		ok and "ok" or "err", 2.2)
+end)
+
+elements:Button("load config", UContainer, function()
+	if not hasFS then
+		return elements:Notify("cant load", "your executor has no file access", "err", 3)
+	end
+	local dec = readCfg()
+	if type(dec.universal) ~= "table" then
+		return elements:Notify("nothing saved", "hit save first", "warn", 2.4)
+	end
+	applyUniversal(dec.universal)
+	lblCfg.Text = "loaded from disk"
+	elements:Notify("loaded", "config applied", "ok", 2.2)
+end)
+
+elements:Button("reset to defaults", UContainer, function()
+	applyUniversal(UNI_DEFAULTS)
+	if hasFS then
+		pcall(function()
+			local dec = readCfg()
+			dec.universal = currentUniversal()
+			writefile(CFG_FILE, httpservice:JSONEncode(dec))
+		end)
+	end
+	lblCfg.Text = "back to defaults"
+	elements:Notify("reset", "everything back to stock", "warn", 2.4)
+end)
+
+elements:Button("copy config", UContainer, function()
+	local ok = pcall(function()
+		setclipboard(httpservice:JSONEncode(currentUniversal()))
+	end)
+	elements:Notify(ok and "copied" or "couldnt copy",
+		ok and "paste it in the box below to share it" or "no setclipboard",
+		ok and "ok" or "err", 3)
+end)
+
+elements:Textbox("paste config here", UContainer, "", function(txt)
+	if txt == "" then return end
+	local ok, dec = pcall(function() return httpservice:JSONDecode(txt) end)
+	if not ok or type(dec) ~= "table" then
+		return elements:Notify("bad config", "that isnt valid json", "err", 3)
+	end
+	applyUniversal(dec)
+	if hasFS then
+		pcall(function()
+			local c = readCfg()
+			c.universal = currentUniversal()
+			writefile(CFG_FILE, httpservice:JSONEncode(c))
+		end)
+	end
+	lblCfg.Text = "imported"
+	elements:Notify("imported", "config applied and saved", "ok", 2.6)
+end)
+
+-- the saved state has to reach the live objects too, not just the
+-- variables. tracers own a connection, so it goes through its setter
+if espTracer then
+	espTracer = false      -- setTracers bails early if it thinks its on
+	setTracers(true)
+end
+if fovCircle then fovCircle.Radius = fovRadius end
 
 -- closing the gui should not leave highlights stuck on people
 ui.Destroying:Connect(function()
