@@ -471,26 +471,101 @@ if loadedModule then
 end
 
 --------------------------------------------------------------
--- UNIVERSAL AIMBOT (STICKY LOCK + WALL CHECK)
+-- UNIVERSAL AIMBOT + ESP
+-- v4 - rewrote the target scanning. the old one called
+-- workspace:GetDescendants() from inside the renderstep, which on a
+-- 4k part map is over a millisecond every single frame. thats where
+-- the stutter came from. now theres a cached npc list that a
+-- DescendantAdded/Removing pair keeps up to date, so the hot path
+-- only ever walks a handful of models.
 --------------------------------------------------------------
 local camera = workspace.CurrentCamera
 local aimbotEnabled = false
 local fovEnabled    = false
 local fovRadius     = 150
-local aimSmooth     = 1.0     -- 1.0 = instant, 0.2 = smooth
+local aimSmooth     = 1.0
 local aimPart       = "Head"
-local teamCheck     = false   -- off for FFA
+local teamCheck     = false
 local isAiming      = false
 local lockedTargetPart = nil
 
-local wallCheck  = true   -- dont lock onto people behind cover
-local dropOnLoss = true   -- and let them go the moment they hide
+local wallCheck  = true
+local dropOnLoss = true
+
+-- pulling these out of the global table once. inside a renderstep
+-- every _G lookup counts
+local vec2      = Vector2.new
+local cf        = CFrame.new
+local clamp     = math.clamp
+local floor     = math.floor
+local sqrt      = math.sqrt
+local osclock   = os.clock
+local tinsert   = table.insert
 
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	camera = workspace.CurrentCamera
 end)
 
+--------------------------------------------------------------
+-- NPC REGISTRY
+-- instead of sweeping the workspace we keep a table of every model
+-- that owns a Humanoid and let the events maintain it. costs
+-- nothing per frame, one full sweep on startup and thats it.
+--------------------------------------------------------------
+local npcSet = {}     -- [model] = humanoid
+local npcCount = 0
+
+local function trackModel(model)
+	if npcSet[model] then return end
+	if model == plr.Character then return end
+	if players:GetPlayerFromCharacter(model) then return end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	npcSet[model] = hum
+	npcCount = npcCount + 1
+end
+
+local function untrackModel(model)
+	if not npcSet[model] then return end
+	npcSet[model] = nil
+	npcCount = npcCount - 1
+end
+
+task.spawn(function()
+	-- the one and only full sweep, spread over frames so joining a
+	-- big map doesnt hitch
+	local all = workspace:GetDescendants()
+	for i = 1, #all do
+		local o = all[i]
+		if o:IsA("Humanoid") then
+			local m = o.Parent
+			if m and m:IsA("Model") then trackModel(m) end
+		end
+		if i % 400 == 0 then task.wait() end
+	end
+end)
+
+workspace.DescendantAdded:Connect(function(d)
+	-- only humanoids matter, and the check is one comparison
+	if d.ClassName ~= "Humanoid" then return end
+	local m = d.Parent
+	if m and m:IsA("Model") then
+		task.defer(trackModel, m)
+	end
+end)
+
+workspace.DescendantRemoving:Connect(function(d)
+	if d.ClassName == "Humanoid" then
+		local m = d.Parent
+		if m then untrackModel(m) end
+	elseif npcSet[d] then
+		untrackModel(d)
+	end
+end)
+
+--------------------------------------------------------------
 -- FOV circle
+--------------------------------------------------------------
 local fovCircle = nil
 pcall(function()
 	if Drawing and Drawing.new then
@@ -499,64 +574,69 @@ pcall(function()
 		fovCircle.Color = Color3.fromRGB(0, 230, 255)
 		fovCircle.Filled = false
 		fovCircle.Transparency = 0.85
-		fovCircle.NumSides = 64
+		fovCircle.NumSides = 48
 		fovCircle.Radius = fovRadius
 		fovCircle.Visible = false
 	end
 end)
 
-runservice.RenderStepped:Connect(function()
-	if fovCircle then
-		fovCircle.Radius = fovRadius
-		fovCircle.Visible = fovEnabled and MainFrame.Visible
-		if fovCircle.Visible then
-			local mp = userinputservice:GetMouseLocation()
-			fovCircle.Position = Vector2.new(mp.X, mp.Y)
+-- was on RenderStepped doing work every frame even with the circle
+-- off. now it bails immediately and only moves when its actually up
+if fovCircle then
+	runservice.RenderStepped:Connect(function()
+		if not fovEnabled then
+			if fovCircle.Visible then fovCircle.Visible = false end
+			return
 		end
-	end
-end)
+		local show = MainFrame.Visible
+		if fovCircle.Visible ~= show then fovCircle.Visible = show end
+		if not show then return end
+		local mp = userinputservice:GetMouseLocation()
+		fovCircle.Position = vec2(mp.X, mp.Y)
+	end)
+end
 
 --------------------------------------------------------------
 -- LINE OF SIGHT
--- one raycast from the camera to the part. i skip my own character
--- and the target's, otherwise his own arm counts as a wall and
--- nothing is ever visible
 --------------------------------------------------------------
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 rayParams.IgnoreWater = true
 
+-- rebuilding this table every raycast was churning garbage. two
+-- slots, overwritten in place
+local skipList = {nil, nil}
+
 local function canSee(part)
 	if not wallCheck then return true end
-	if not part or not part.Parent then return false end
+	if not part then return false end
 
 	local origin = camera.CFrame.Position
 	local dest   = part.Position
 	local dir    = dest - origin
 	if dir.Magnitude < 1 then return true end
 
-	local skip = {part.Parent}
-	if plr.Character then table.insert(skip, plr.Character) end
-	rayParams.FilterDescendantsInstances = skip
+	skipList[1] = part.Parent
+	skipList[2] = plr.Character
+	rayParams.FilterDescendantsInstances = skipList
 
 	local hit = workspace:Raycast(origin, dir, rayParams)
 	if not hit then return true end
 
 	-- the ray lands on the edge of the hitbox, not the centre. without
 	-- this margin you get false negatives constantly
-	return (hit.Position - dest).Magnitude < 2.5
+	local d = hit.Position - dest
+	return (d.X * d.X + d.Y * d.Y + d.Z * d.Z) < 6.25   -- 2.5 squared
 end
 
+--------------------------------------------------------------
 local function getTargetHeadPart(model)
-	if not model or not model:IsA("Model") or not model.Parent then return nil end
 	local part = model:FindFirstChild(aimPart)
-	if not part then
-		part = model:FindFirstChild("Head")
-			or model:FindFirstChild("HumanoidRootPart")
-			or model:FindFirstChild("Torso")
-			or model:FindFirstChild("UpperTorso")
-	end
-	return part
+	if part then return part end
+	return model:FindFirstChild("Head")
+		or model:FindFirstChild("HumanoidRootPart")
+		or model:FindFirstChild("UpperTorso")
+		or model:FindFirstChild("Torso")
 end
 
 local function isValidLockedTarget(part)
@@ -569,63 +649,86 @@ local function isValidLockedTarget(part)
 	local sp, onScreen = camera:WorldToViewportPoint(part.Position)
 	if not onScreen then return false end
 
-	-- 1.6x margin while tracking so the lock stays sticky
-	local dist = (Vector2.new(sp.X, sp.Y) - Vector2.new(mp.X, mp.Y)).Magnitude
-	if dist > (fovRadius * 1.6) then return false end
+	-- squared compare, no sqrt. 1.6x margin keeps the lock sticky
+	local dx = sp.X - mp.X
+	local dy = sp.Y - mp.Y
+	local lim = fovRadius * 1.6
+	if (dx * dx + dy * dy) > (lim * lim) then return false end
 
-	-- ducked behind cover, drop him instead of tracking a wall
 	if dropOnLoss and not canSee(part) then return false end
-
 	return true
 end
 
+-- the search. one pass, no allocations, raycast only on the winner.
+-- before this it raycast every candidate inside the loop which is
+-- the second reason it stuttered in a crowded lobby
 local function getClosestTargetToMouse()
-	local closestPart = nil
-	local shortestDist = fovRadius
 	local mp = userinputservice:GetMouseLocation()
-	local mv = Vector2.new(mp.X, mp.Y)
+	local mx, my = mp.X, mp.Y
+	local limit = fovRadius * fovRadius
 
-	local function consider(model)
-		local hum = model:FindFirstChildOfClass("Humanoid")
-		if not hum or hum.Health <= 0 then return end
+	local bestPart, bestDist = nil, limit
+	-- keep the runners up so if the closest one is behind a wall we
+	-- can fall through to the next instead of giving up
+	local p2, d2, p3, d3
+
+	local function consider(model, hum)
+		if hum.Health <= 0 then return end
 		local part = getTargetHeadPart(model)
 		if not part then return end
+
 		local sp, onScreen = camera:WorldToViewportPoint(part.Position)
 		if not onScreen then return end
-		local dist = (Vector2.new(sp.X, sp.Y) - mv).Magnitude
-		if dist >= shortestDist then return end
-		-- checked last on purpose, the raycast is the expensive bit
-		if not canSee(part) then return end
-		shortestDist = dist
-		closestPart = part
-	end
 
-	-- players first
-	for _, p in ipairs(players:GetPlayers()) do
-		if p ~= plr and p.Character then
-			local same = teamCheck and p.Team and plr.Team and p.Team == plr.Team
-			if not same then consider(p.Character) end
+		local dx = sp.X - mx
+		local dy = sp.Y - my
+		local d = dx * dx + dy * dy
+		if d >= bestDist then
+			if d < (d2 or limit) then p3, d3 = p2, d2; p2, d2 = part, d
+			elseif d < (d3 or limit) then p3, d3 = part, d end
+			return
 		end
+		p3, d3 = p2, d2
+		p2, d2 = bestPart, bestDist
+		bestPart, bestDist = part, d
 	end
 
-	-- then npcs, only if no player matched
-	if not closestPart then
-		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj ~= plr.Character
-			and not players:GetPlayerFromCharacter(obj) then
-				consider(obj)
+	local myTeam = plr.Team
+	for _, p in ipairs(players:GetPlayers()) do
+		if p ~= plr then
+			local ch = p.Character
+			if ch then
+				if not (teamCheck and myTeam and p.Team == myTeam) then
+					local hum = ch:FindFirstChildOfClass("Humanoid")
+					if hum then consider(ch, hum) end
+				end
 			end
 		end
 	end
 
-	return closestPart
+	-- cached npcs, no workspace sweep
+	for model, hum in pairs(npcSet) do
+		if model.Parent then
+			consider(model, hum)
+		else
+			untrackModel(model)
+		end
+	end
+
+	-- at most three raycasts instead of one per candidate
+	if bestPart and canSee(bestPart) then return bestPart end
+	if p2 and canSee(p2) then return p2 end
+	if p3 and canSee(p3) then return p3 end
+	return nil
 end
 
 userinputservice.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = true
-		lockedTargetPart = getClosestTargetToMouse()
+		if aimbotEnabled then
+			lockedTargetPart = getClosestTargetToMouse()
+		end
 	end
 end)
 
@@ -636,30 +739,45 @@ userinputservice.InputEnded:Connect(function(input)
 	end
 end)
 
-runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
-	if not (aimbotEnabled and isAiming) then return end
+--------------------------------------------------------------
+-- the hot path.
+-- moving the camera has to happen every frame or it looks choppy,
+-- but re-picking a target does not. so: aim always, re-scan at most
+-- 20 times a second, and only when the current one went invalid.
+--------------------------------------------------------------
+local nextScan = 0
+local RESCAN_EVERY = 0.05
 
-	if not isValidLockedTarget(lockedTargetPart) then
-		lockedTargetPart = getClosestTargetToMouse()
+runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
+	if not aimbotEnabled or not isAiming then return end
+
+	local part = lockedTargetPart
+	if not part or not isValidLockedTarget(part) then
+		local now = osclock()
+		if now >= nextScan then
+			nextScan = now + RESCAN_EVERY
+			part = getClosestTargetToMouse()
+			lockedTargetPart = part
+		else
+			part = nil
+		end
 	end
 
-	if lockedTargetPart then
-		local desiredCF = CFrame.new(camera.CFrame.Position, lockedTargetPart.Position)
-		if aimSmooth >= 0.95 then
-			camera.CFrame = desiredCF
-		else
-			-- framerate independent, no jitter
-			local f = math.clamp(dt * (aimSmooth * 28), 0.05, 1)
-			camera.CFrame = camera.CFrame:Lerp(desiredCF, f)
-		end
+	if not part then return end
+
+	local camCF = camera.CFrame
+	local desired = cf(camCF.Position, part.Position)
+	if aimSmooth >= 0.95 then
+		camera.CFrame = desired
+	else
+		camera.CFrame = camCF:Lerp(desired, clamp(dt * (aimSmooth * 28), 0.05, 1))
 	end
 end)
 
 --------------------------------------------------------------
 -- ESP
 -- highlights for the body, billboard for the text. tried Drawing
--- boxes first but they fight the camera every frame and wobble.
--- highlights are basically free and render through walls
+-- boxes first, they fight the camera every frame and wobble.
 --------------------------------------------------------------
 local espEnabled   = false
 local espChams     = true
@@ -674,6 +792,16 @@ espFolder.Name = "\0LH_esp"
 espFolder.Parent = hui and hui() or coregui
 
 local espCache = {}
+local espActive = {}   -- flat array so the tracer loop isnt a pairs()
+
+local function rebuildActive()
+	local n = 0
+	for _, e in pairs(espCache) do
+		n = n + 1
+		espActive[n] = e
+	end
+	for i = n + 1, #espActive do espActive[i] = nil end
+end
 
 local function clearEsp(model)
 	local e = espCache[model]
@@ -686,30 +814,41 @@ end
 
 local function clearAllEsp()
 	for m in pairs(espCache) do clearEsp(m) end
+	for i = 1, #espActive do espActive[i] = nil end
 end
+
+local C_ALLY   = Color3.fromRGB(90, 200, 255)
+local C_ENEMY  = Color3.fromRGB(255, 80, 80)
+local C_NPC    = Color3.fromRGB(255, 190, 60)
+local C_HP_OK  = Color3.fromRGB(120, 235, 110)
+local C_HP_MID = Color3.fromRGB(250, 190, 60)
+local C_HP_LOW = Color3.fromRGB(250, 90, 90)
+local C_WHITE  = Color3.fromRGB(255, 255, 255)
+local C_BLACK  = Color3.fromRGB(0, 0, 0)
 
 local function espColor(model)
 	local p = players:GetPlayerFromCharacter(model)
-	if p and plr.Team and p.Team then
-		return p.Team == plr.Team and Color3.fromRGB(90, 200, 255)
-			or Color3.fromRGB(255, 80, 80)
+	if not p then return C_NPC end
+	if plr.Team and p.Team then
+		return p.Team == plr.Team and C_ALLY or C_ENEMY
 	end
-	return p and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(255, 190, 60)
+	return C_ENEMY
 end
 
 local function buildEsp(model)
 	local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
 	if not root then return nil end
 
-	local e = {}
+	local col = espColor(model)
+	local e = {root = root, lastHp = -1, lastCol = col}
 
 	local hl = Instance.new("Highlight")
 	hl.Adornee = model
-	hl.FillColor = espColor(model)
+	hl.FillColor = col
 	hl.FillTransparency = 0.62
-	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+	hl.OutlineColor = C_WHITE
 	hl.OutlineTransparency = 0.15
-	-- this line is what makes it show through walls
+	-- this line is what makes it draw through walls
 	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.Parent = espFolder
 	e.hl = hl
@@ -725,14 +864,15 @@ local function buildEsp(model)
 	local nm = Instance.new("TextLabel")
 	nm.Size = UDim2.new(1, 0, 0, 17)
 	nm.BackgroundTransparency = 1
-	nm.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nm.TextColor3 = col
 	nm.TextSize = 14
 	nm.Font = Enum.Font.FredokaOne
-	nm.Text = model.Name
+	local pl = players:GetPlayerFromCharacter(model)
+	nm.Text = pl and pl.DisplayName or model.Name
 	nm.Parent = tag
 	local ns = Instance.new("UIStroke")
 	ns.Thickness = 2
-	ns.Color = Color3.fromRGB(0, 0, 0)
+	ns.Color = C_BLACK
 	ns.Parent = nm
 	e.nm = nm
 
@@ -740,25 +880,23 @@ local function buildEsp(model)
 	hp.Size = UDim2.new(1, 0, 0, 15)
 	hp.Position = UDim2.new(0, 0, 0, 16)
 	hp.BackgroundTransparency = 1
-	hp.TextColor3 = Color3.fromRGB(120, 235, 110)
+	hp.TextColor3 = C_HP_OK
 	hp.TextSize = 12
 	hp.Font = Enum.Font.FredokaOne
 	hp.Text = ""
 	hp.Parent = tag
 	local hs = Instance.new("UIStroke")
 	hs.Thickness = 2
-	hs.Color = Color3.fromRGB(0, 0, 0)
+	hs.Color = C_BLACK
 	hs.Parent = hp
 	e.hp = hp
-
 	e.tag = tag
-	e.root = root
 
 	if Drawing and Drawing.new then
 		pcall(function()
 			local l = Drawing.new("Line")
 			l.Thickness = 1
-			l.Color = Color3.fromRGB(255, 255, 255)
+			l.Color = C_WHITE
 			l.Transparency = 0.6
 			l.Visible = false
 			e.line = l
@@ -769,107 +907,151 @@ local function buildEsp(model)
 	return e
 end
 
-local function espEligible(model)
-	if model == plr.Character then return false end
-	local hum = model:FindFirstChildOfClass("Humanoid")
-	if not hum or hum.Health <= 0 then return false end
-	if espTeamCheck then
-		local p = players:GetPlayerFromCharacter(model)
-		if p and p.Team and plr.Team and p.Team == plr.Team then return false end
-	end
-	return true
-end
-
--- runs on Heartbeat with a 0.1s accumulator, not every frame.
--- scanning the whole workspace 240 times a second kills your fps
+--------------------------------------------------------------
+-- two loops on purpose.
+-- the slow one rebuilds the list and rewrites text 8x a second,
+-- because names and health simply do not need 240hz.
+-- the fast one only touches tracers, and only when theyre on.
+--------------------------------------------------------------
 local espAccum = 0
+local ESP_EVERY = 0.125
+
 runservice.Heartbeat:Connect(function(dt)
 	if not espEnabled then return end
 
 	espAccum = espAccum + dt
-	if espAccum < 0.1 then
-		-- tracers are the only thing that has to keep up with the camera
-		for _, e in pairs(espCache) do
-			if e.line then
-				if espTracer and e.root and e.root.Parent then
-					local sp, on = camera:WorldToViewportPoint(e.root.Position)
-					if on then
-						local vp = camera.ViewportSize
-						e.line.From = Vector2.new(vp.X / 2, vp.Y)
-						e.line.To = Vector2.new(sp.X, sp.Y)
-						e.line.Color = e.hl and e.hl.FillColor or Color3.new(1, 1, 1)
-						e.line.Visible = true
-					else
-						e.line.Visible = false
-					end
-				else
-					e.line.Visible = false
-				end
-			end
-		end
-		return
-	end
+	if espAccum < ESP_EVERY then return end
 	espAccum = 0
 
-	local seen = {}
-	local myRoot = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+	local myChar = plr.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local myPos  = myRoot and myRoot.Position
+	local maxSq  = espMaxDist * espMaxDist
+	local myTeam = plr.Team
 
-	local function handle(model)
-		if not espEligible(model) then return end
-		local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
-		if myRoot and root and (root.Position - myRoot.Position).Magnitude > espMaxDist then
-			return
+	local seen = {}
+
+	local function handle(model, hum, isPlayer, p)
+		if hum.Health <= 0 then return end
+		if espTeamCheck and isPlayer and myTeam and p.Team == myTeam then return end
+
+		local e = espCache[model]
+		local root = e and e.root
+		if not root or not root.Parent then
+			root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+			if not root then return end
 		end
 
-		seen[model] = true
-		local e = espCache[model] or buildEsp(model)
-		if not e then return end
+		if myPos then
+			local d = root.Position - myPos
+			local dsq = d.X * d.X + d.Y * d.Y + d.Z * d.Z
+			if dsq > maxSq then return end
+			seen[model] = true
+			e = e or buildEsp(model)
+			if not e then return end
+			e.dist = floor(sqrt(dsq))
+		else
+			seen[model] = true
+			e = e or buildEsp(model)
+			if not e then return end
+			e.dist = 0
+		end
+
+		if e.hl.Enabled ~= espChams then e.hl.Enabled = espChams end
+
+		local wantTag = espName or espHealth
+		if e.tag.Enabled ~= wantTag then e.tag.Enabled = wantTag end
+		if not wantTag then return end
+
+		if e.nm.Visible ~= espName then e.nm.Visible = espName end
+		if e.hp.Visible ~= espHealth then e.hp.Visible = espHealth end
 
 		local col = espColor(model)
-		e.hl.Enabled = espChams
-		e.hl.FillColor = col
-		e.hl.Adornee = model
-
-		e.tag.Enabled = espName or espHealth
-		e.nm.Visible = espName
-		e.hp.Visible = espHealth
-
-		if espName then
-			local p = players:GetPlayerFromCharacter(model)
-			e.nm.Text = p and p.DisplayName or model.Name
+		if col ~= e.lastCol then
+			e.lastCol = col
+			e.hl.FillColor = col
 			e.nm.TextColor3 = col
 		end
 
 		if espHealth then
-			local hum = model:FindFirstChildOfClass("Humanoid")
-			if hum then
-				local pct = math.floor((hum.Health / math.max(hum.MaxHealth, 1)) * 100)
-				local dst = ""
-				if myRoot and e.root and e.root.Parent then
-					dst = "  " .. math.floor((e.root.Position - myRoot.Position).Magnitude) .. "m"
-				end
-				e.hp.Text = pct .. "%" .. dst
-				e.hp.TextColor3 = pct > 60 and Color3.fromRGB(120, 235, 110)
-					or (pct > 30 and Color3.fromRGB(250, 190, 60)
-					or Color3.fromRGB(250, 90, 90))
+			local pct = floor((hum.Health / (hum.MaxHealth > 0 and hum.MaxHealth or 1)) * 100)
+			-- only rewrite the string when the numbers actually moved.
+			-- setting .Text every tick makes roblox re-measure the label
+			if pct ~= e.lastHp or e.dist ~= e.lastDist then
+				e.lastHp = pct
+				e.lastDist = e.dist
+				e.hp.Text = pct .. "%  " .. e.dist .. "m"
+				e.hp.TextColor3 = pct > 60 and C_HP_OK
+					or (pct > 30 and C_HP_MID or C_HP_LOW)
 			end
 		end
 	end
 
 	for _, p in ipairs(players:GetPlayers()) do
-		if p ~= plr and p.Character then handle(p.Character) end
-	end
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") and not players:GetPlayerFromCharacter(obj) then
-			if obj:FindFirstChildOfClass("Humanoid") then handle(obj) end
+		if p ~= plr then
+			local ch = p.Character
+			if ch then
+				local hum = ch:FindFirstChildOfClass("Humanoid")
+				if hum then handle(ch, hum, true, p) end
+			end
 		end
 	end
 
-	-- anything that died or walked out of range
+	-- same cached registry the aimbot uses, no workspace sweep here either
+	for model, hum in pairs(npcSet) do
+		if model.Parent then
+			handle(model, hum, false, nil)
+		else
+			untrackModel(model)
+		end
+	end
+
 	for model in pairs(espCache) do
 		if not seen[model] then clearEsp(model) end
 	end
+
+	rebuildActive()
 end)
+
+-- tracers get their own connection so it can be disconnected outright
+local tracerConn = nil
+
+local function setTracers(on)
+	espTracer = on
+	if on and not tracerConn then
+		tracerConn = runservice.RenderStepped:Connect(function()
+			local vp = camera.ViewportSize
+			local bx, by = vp.X * 0.5, vp.Y
+			for i = 1, #espActive do
+				local e = espActive[i]
+				local l = e.line
+				if l then
+					local root = e.root
+					if root and root.Parent then
+						local sp, on2 = camera:WorldToViewportPoint(root.Position)
+						if on2 then
+							l.From = vec2(bx, by)
+							l.To = vec2(sp.X, sp.Y)
+							l.Color = e.lastCol or C_WHITE
+							if not l.Visible then l.Visible = true end
+						elseif l.Visible then
+							l.Visible = false
+						end
+					elseif l.Visible then
+						l.Visible = false
+					end
+				end
+			end
+		end)
+	elseif not on and tracerConn then
+		tracerConn:Disconnect()
+		tracerConn = nil
+		for i = 1, #espActive do
+			local l = espActive[i].line
+			if l then pcall(function() l.Visible = false end) end
+		end
+	end
+end
 
 --------------------------------------------------------------
 -- UNIVERSAL TAB UI
@@ -897,7 +1079,7 @@ end)
 
 elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
 	fovEnabled = v
-	if fovCircle then fovCircle.Visible = v end
+	if fovCircle and not v then fovCircle.Visible = false end
 end)
 
 elements:Toggle("Team Check (off = FFA)", UContainer, false, function(v)
@@ -942,7 +1124,10 @@ elements:Header(UContainer, "esp / wallhack")
 
 elements:Toggle("ESP", UContainer, false, function(v)
 	espEnabled = v
-	if not v then clearAllEsp() end
+	if not v then
+		setTracers(false)
+		clearAllEsp()
+	end
 	elements:Notify("esp", v and "enabled" or "disabled", "info", 1.8)
 end)
 
@@ -957,12 +1142,7 @@ elements:Toggle("Names", UContainer, true, function(v) espName = v end)
 elements:Toggle("Health + distance", UContainer, true, function(v) espHealth = v end)
 
 elements:Toggle("Tracers", UContainer, false, function(v)
-	espTracer = v
-	if not v then
-		for _, e in pairs(espCache) do
-			if e.line then pcall(function() e.line.Visible = false end) end
-		end
-	end
+	setTracers(v)
 end)
 
 elements:Toggle("ESP Team Check", UContainer, false, function(v)
@@ -984,6 +1164,7 @@ end)
 
 -- closing the gui should not leave highlights stuck on people
 ui.Destroying:Connect(function()
+	setTracers(false)
 	clearAllEsp()
 	pcall(function() espFolder:Destroy() end)
 	pcall(function() runservice:UnbindFromRenderStep("LoadedHubAimbotLock") end)
