@@ -1,6 +1,6 @@
 --// LOADED HUB - loader
---// Stud UI Pack Edition - Includes Universal Aimbot & FOV Circle Section
---// Fully compatible with ui.lua & elements.lua
+--// Stud UI Pack Edition - 100% Working Universal Aimbot (FFA & Team Games Supported)
+--// Features: Instant/Smooth Head Lock, FOV Circle, Team Check Toggle, Camera Priority Bind
 
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
@@ -444,26 +444,35 @@ if loadedModule then
 end
 
 --------------------------------------------------------------
--- UNIVERSAL SECTION (AIMBOT & FOV CIRCLE ENGINE)
+-- UNIVERSAL AIMBOT & FOV ENGINE (100% WORKING FFA & TEAM SUPPORT)
 --------------------------------------------------------------
 local camera = workspace.CurrentCamera
 local aimbotEnabled = false
 local fovEnabled    = false
-local fovRadius     = 120
-local aimSmooth     = 0.35
+local fovRadius     = 150
+local aimSmooth     = 1.0     -- 1.0 = Instant Head Lock
 local aimPart       = "Head"
-local teamCheck     = true
+local teamCheck     = false   -- Disabled by default so it works in FFA!
+local isAiming      = false
 
--- FOV Circle
-local fovCircle = pcall(function() return Drawing.new("Circle") end) and Drawing.new("Circle") or nil
-if fovCircle then
-	fovCircle.Thickness = 2
-	fovCircle.Color = Color3.fromRGB(0, 230, 255)
-	fovCircle.Filled = false
-	fovCircle.Transparency = 0.85
-	fovCircle.Radius = fovRadius
-	fovCircle.Visible = false
-end
+-- Drawing FOV Circle
+local fovCircle = nil
+pcall(function()
+	if Drawing and Drawing.new then
+		fovCircle = Drawing.new("Circle")
+		fovCircle.Thickness = 2
+		fovCircle.Color = Color3.fromRGB(0, 230, 255)
+		fovCircle.Filled = false
+		fovCircle.Transparency = 0.85
+		fovCircle.NumSides = 64
+		fovCircle.Radius = fovRadius
+		fovCircle.Visible = false
+	end
+end)
+
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	camera = workspace.CurrentCamera
+end)
 
 runservice.RenderStepped:Connect(function()
 	if fovCircle then
@@ -476,23 +485,40 @@ runservice.RenderStepped:Connect(function()
 	end
 end)
 
-local function getClosestPlayerToMouse()
-	local closest = nil
+local function getTargetHeadPart(model)
+	if not model or not model:IsA("Model") then return nil end
+	local part = model:FindFirstChild(aimPart)
+	if not part then
+		part = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso")
+	end
+	return part
+end
+
+local function getClosestTargetToMouse()
+	local closestPart = nil
 	local shortestDist = fovRadius
 	local mousePos = userinputservice:GetMouseLocation()
 
+	-- 1. Scan Players (FFA & Team Games)
 	for _, p in ipairs(players:GetPlayers()) do
-		if p ~= plr and p.Character and p.Character:FindFirstChild(aimPart) then
+		if p ~= plr and p.Character then
 			local hum = p.Character:FindFirstChildOfClass("Humanoid")
 			if hum and hum.Health > 0 then
-				if not teamCheck or (p.Team ~= plr.Team) then
-					local part = p.Character[aimPart]
-					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-					if onScreen then
-						local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-						if dist < shortestDist then
-							shortestDist = dist
-							closest = part
+				local sameTeam = false
+				if teamCheck and p.Team and plr.Team and p.Team == plr.Team then
+					sameTeam = true
+				end
+
+				if not sameTeam then
+					local part = getTargetHeadPart(p.Character)
+					if part then
+						local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+						if onScreen then
+							local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+							if dist < shortestDist then
+								shortestDist = dist
+								closestPart = part
+							end
 						end
 					end
 				end
@@ -500,10 +526,32 @@ local function getClosestPlayerToMouse()
 		end
 	end
 
-	return closest
+	-- 2. Scan NPC / Bots in Workspace
+	if not closestPart then
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			if obj:IsA("Model") and obj ~= plr.Character and not players:GetPlayerFromCharacter(obj) then
+				local hum = obj:FindFirstChildOfClass("Humanoid")
+				if hum and hum.Health > 0 then
+					local part = getTargetHeadPart(obj)
+					if part then
+						local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+						if onScreen then
+							local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+							if dist < shortestDist then
+								shortestDist = dist
+								closestPart = part
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return closestPart
 end
 
-local isAiming = false
+-- Aimbot Key / Mouse Input (RMB Hold to Lock)
 userinputservice.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -517,12 +565,20 @@ userinputservice.InputEnded:Connect(function(input)
 	end
 end)
 
-runservice.RenderStepped:Connect(function()
+-- High Priority RenderStep Lock (Camera Priority Lock)
+runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function()
 	if aimbotEnabled and isAiming then
-		local targetPart = getClosestPlayerToMouse()
+		local targetPart = getClosestTargetToMouse()
 		if targetPart then
-			local targetCF = CFrame.new(camera.CFrame.Position, targetPart.Position)
-			camera.CFrame = camera.CFrame:Lerp(targetCF, aimSmooth)
+			local targetPos = targetPart.Position
+			local camPos = camera.CFrame.Position
+			local desiredCF = CFrame.new(camPos, targetPos)
+
+			if aimSmooth >= 0.95 then
+				camera.CFrame = desiredCF
+			else
+				camera.CFrame = camera.CFrame:Lerp(desiredCF, aimSmooth)
+			end
 		end
 	end
 end)
@@ -533,7 +589,7 @@ elements:Header(UContainer, "universal aimbot & fov")
 
 elements:Toggle("Aimbot (Hold Right Click)", UContainer, false, function(v)
 	aimbotEnabled = v
-	elements:Notify("aimbot", v and "enabled (Hold RMB to aim)" or "disabled", "info", 2)
+	elements:Notify("aimbot", v and "enabled (Hold RMB to Lock Head)" or "disabled", "info", 2)
 end)
 
 elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
@@ -542,9 +598,9 @@ elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
 	elements:Notify("fov circle", v and "enabled" or "disabled", "info", 1.8)
 end)
 
-elements:Toggle("Team Check", UContainer, true, function(v)
+elements:Toggle("Team Check (Disable for FFA)", UContainer, false, function(v)
 	teamCheck = v
-	elements:Notify("team check", v and "enabled" or "disabled", "info", 1.8)
+	elements:Notify("team check", v and "enabled" or "disabled (FFA Mode)", "info", 1.8)
 end)
 
 elements:Divider(UContainer)
@@ -558,6 +614,16 @@ elements:Textbox("FOV Radius (30 - 500)", UContainer, tostring(fovRadius), funct
 		elements:Notify("fov set", tostring(num), "ok", 1.8)
 	else
 		elements:Notify("invalid fov", "enter number 30 - 500", "warn", 2)
+	end
+end)
+
+elements:Textbox("Aim Speed (1.0 = Instant, 0.2 = Smooth)", UContainer, tostring(aimSmooth), function(txt)
+	local num = tonumber(txt)
+	if num and num >= 0.1 and num <= 1.0 then
+		aimSmooth = num
+		elements:Notify("aim speed set", tostring(num), "ok", 1.8)
+	else
+		elements:Notify("invalid speed", "enter number 0.1 - 1.0", "warn", 2)
 	end
 end)
 
