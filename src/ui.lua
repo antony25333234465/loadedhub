@@ -1,5 +1,5 @@
 --// ui.lua
---// Stud UI Pack - Figma Rays Header & Halftone Dot Gradient Overlay
+--// Stud UI Pack - Figma Rays Header & Universal Section with Custom Tab Colors
 --// Fully compatible with main.lua & elements.lua
 
 local tweenservice = game:GetService("TweenService")
@@ -19,10 +19,11 @@ local MUTED_GRAY = Color3.fromRGB(140, 145, 165)
 local BLUE_TOP   = Color3.fromRGB(0, 180, 255)     -- Header Top Blue
 local BLUE_BOT   = Color3.fromRGB(0, 95, 210)      -- Header Bottom Blue
 
--- Vibrant Custom Color Themes for Each Tab
+-- Vibrant Custom Color Themes for Each Tab (Includes Universal)
 local TAB_THEMES = {
 	Home      = { Top = Color3.fromRGB(0, 190, 255),   Bot = Color3.fromRGB(0, 95, 215),   Accent = Color3.fromRGB(0, 230, 255) },
 	Game      = { Top = Color3.fromRGB(0, 220, 110),   Bot = Color3.fromRGB(0, 130, 60),    Accent = Color3.fromRGB(50, 255, 140) },
+	Universal = { Top = Color3.fromRGB(0, 210, 255),   Bot = Color3.fromRGB(0, 110, 220),   Accent = Color3.fromRGB(100, 240, 255) },
 	Gameslist = { Top = Color3.fromRGB(255, 195, 15),   Bot = Color3.fromRGB(180, 120, 0),   Accent = Color3.fromRGB(255, 230, 70) },
 	Settings  = { Top = Color3.fromRGB(215, 50, 240),  Bot = Color3.fromRGB(120, 20, 150),  Accent = Color3.fromRGB(245, 120, 255) },
 	Credits   = { Top = Color3.fromRGB(255, 70, 80),   Bot = Color3.fromRGB(170, 20, 30),   Accent = Color3.fromRGB(255, 130, 140) },
@@ -90,7 +91,7 @@ end
 local rng = Random.new(os.time() % 99991)
 
 --------------------------------------------------------------
--- MAIN FRAME HALFTONE & OUTER PATTERN (ONLY ON OUTER MAIN FRAME BACKGROUND)
+-- MAIN FRAME HALFTONE & OUTER PATTERN
 --------------------------------------------------------------
 local function addMainFramePatterns(parent)
 	local bg = Instance.new("Frame")
@@ -103,20 +104,20 @@ local function addMainFramePatterns(parent)
 	bg.ZIndex = 400
 	bg.Parent = parent
 
-	-- Long White Circle Halftone Dot Gradient Texture Overlay (LongWhiteCircle_Halftone)
+	-- Long White Circle Halftone Dot Gradient Texture Overlay
 	local halftone = Instance.new("ImageLabel")
 	halftone.Name = "HalftoneDotGradient"
 	halftone.Size = UDim2.new(1, 0, 1, 0)
 	halftone.Position = UDim2.new(0, 0, 0, 0)
 	halftone.BackgroundTransparency = 1
-	halftone.Image = "rbxassetid://10842503251" -- Halftone dot pattern gradient
+	halftone.Image = "rbxassetid://10842503251"
 	halftone.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	halftone.ImageTransparency = 0.65 -- CLEARLY VISIBLE HALFTONE DOTS
+	halftone.ImageTransparency = 0.78
 	halftone.ScaleType = Enum.ScaleType.Crop
 	halftone.ZIndex = 400
 	halftone.Parent = bg
 
-	-- Outer stud grid texture (ONLY on outer main frame background edges)
+	-- Outer stud grid texture
 	local studs = Instance.new("ImageLabel")
 	studs.Name = "OuterStudTexture"
 	studs.Size = UDim2.new(1, 0, 1, 0)
@@ -233,7 +234,7 @@ Topbar.Name = "TopBar"
 Topbar.Size = UDim2.new(1, 0, 0, 68)
 Topbar.BackgroundColor3 = BLUE_TOP
 Topbar.BorderSizePixel = 0
-Topbar.ClipsDescendants = true -- STRICTLY CLAMPS RAYS INSIDE HEADER
+Topbar.ClipsDescendants = true
 Topbar.ZIndex = 401
 Topbar.Parent = MainFrame
 
@@ -241,26 +242,25 @@ corner(Topbar, 8)
 stroke(Topbar, 3, BLACK_OUT)
 glossyGradient(Topbar, BLUE_TOP, BLUE_BOT, 90)
 
--- FIGMA LIGHT RAYS OVERLAY (ZIndex = 402 - EXACTLY HEADER SIZE, DOES NOT LEAK)
+-- FIGMA LIGHT RAYS OVERLAY
 do
 	local raysOverlay = Instance.new("ImageLabel")
 	raysOverlay.Name = "FigmaRaysOverlay"
-	raysOverlay.Size = UDim2.new(1, 0, 1, 0) -- STRICTLY EXACT HEADER SIZE (1x1 SCALE)
+	raysOverlay.Size = UDim2.new(1, 0, 1, 0)
 	raysOverlay.Position = UDim2.new(0, 0, 0, 0)
 	raysOverlay.BackgroundTransparency = 1
-	raysOverlay.Image = "rbxassetid://10842502695" -- Figma style diagonal rays
+	raysOverlay.Image = "rbxassetid://10842502695"
 	raysOverlay.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	raysOverlay.ImageTransparency = 0.18 -- CLEAR HIGH VISIBILITY
+	raysOverlay.ImageTransparency = 0.18
 	raysOverlay.ScaleType = Enum.ScaleType.Crop
-	raysOverlay.ZIndex = 402 -- Strictly behind text and buttons
+	raysOverlay.ZIndex = 402
 	raysOverlay.Parent = Topbar
 
-	-- Ray beam accents clamped to header height
 	for i = 1, 3 do
 		local beam = Instance.new("Frame")
 		beam.Name = "FigmaRayBeam" .. i
 		beam.AnchorPoint = Vector2.new(0.5, 0.5)
-		beam.Size = UDim2.new(0, i * 40 + 30, 1, 0) -- STRICTLY HEADER HEIGHT
+		beam.Size = UDim2.new(0, i * 40 + 30, 1, 0)
 		beam.Position = UDim2.new(i * 0.28, 0, 0.5, 0)
 		beam.BackgroundColor3 = WHITE
 		beam.BackgroundTransparency = 0.85
@@ -280,11 +280,11 @@ do
 	end
 end
 
--- Header Sheen Animation (Clamped strictly to Header bounds)
+-- Sheen animation across header
 do
 	local sheen = Instance.new("Frame")
 	sheen.Name = "sheen"
-	sheen.Size = UDim2.new(0, 80, 1, 0) -- STRICTLY HEADER HEIGHT
+	sheen.Size = UDim2.new(0, 80, 1, 0)
 	sheen.Position = UDim2.new(0, -100, 0, 0)
 	sheen.BackgroundColor3 = WHITE
 	sheen.BackgroundTransparency = 0.85
@@ -303,7 +303,7 @@ do
 	end)
 end
 
--- Header Icon Box (ZIndex = 405)
+-- Header Icon Box
 local badge = Instance.new("Frame")
 badge.Name = "badge"
 badge.AnchorPoint = Vector2.new(0, 0.5)
@@ -330,7 +330,7 @@ badgeTxt.ZIndex = 406
 badgeTxt.Parent = badge
 textStroke(badgeTxt, 2, BLACK_OUT)
 
--- Header Title & Subtitle (ZIndex = 405)
+-- Header Title & Subtitle
 local title = Instance.new("TextLabel")
 title.Name = "title"
 title.AnchorPoint = Vector2.new(0, 0.5)
@@ -361,7 +361,7 @@ sub.ZIndex = 405
 sub.Parent = Topbar
 textStroke(sub, 1.5, BLACK_OUT)
 
--- Hide UI Button (ZIndex = 405)
+-- Hide UI Button
 local hidebtn = Instance.new("TextButton")
 hidebtn.Name = "hidebtn"
 hidebtn.AnchorPoint = Vector2.new(1, 0.5)
@@ -388,7 +388,7 @@ hidebtn.MouseLeave:Connect(function()
 	tw(hidebtn, SMOOTH, {BackgroundColor3 = Color3.fromRGB(0, 130, 220)})
 end)
 
--- Close Button ("X" Red Glossy Button - ZIndex = 405)
+-- Close Button
 local closebtn = Instance.new("TextButton")
 closebtn.Name = "closebtn"
 closebtn.AnchorPoint = Vector2.new(1, 0.5)
@@ -416,14 +416,14 @@ closebtn.MouseLeave:Connect(function()
 end)
 
 --------------------------------------------------------------
--- TAB LIST (100% OPAQUE - ZERO STUDS INSIDE TABS)
+-- TAB LIST (NO STUDS INSIDE TABS)
 --------------------------------------------------------------
 local TabList = Instance.new("Frame")
 TabList.Name = "tablist"
 TabList.Size = UDim2.new(0, 220, 1, -124)
 TabList.Position = UDim2.new(0, 12, 0, 78)
 TabList.BackgroundColor3 = PANEL_BG
-TabList.BackgroundTransparency = 0 -- OPAQUE SOLID DARK GLASS
+TabList.BackgroundTransparency = 0
 TabList.BorderSizePixel = 0
 TabList.ZIndex = 401
 TabList.Parent = MainFrame
@@ -432,12 +432,12 @@ corner(TabList, 8)
 stroke(TabList, 2.5, BLACK_OUT)
 
 local tabLayout = Instance.new("UIListLayout")
-tabLayout.Padding = UDim.new(0, 8)
+tabLayout.Padding = UDim.new(0, 6)
 tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 tabLayout.Parent = TabList
 
 local tabPad = Instance.new("UIPadding")
-tabPad.PaddingTop = UDim.new(0, 10)
+tabPad.PaddingTop = UDim.new(0, 8)
 tabPad.PaddingLeft = UDim.new(0, 8)
 tabPad.PaddingRight = UDim.new(0, 8)
 tabPad.Parent = TabList
@@ -489,6 +489,10 @@ local function icon(parent, kind)
 		bit(2, 6, -4, 1, 1)
 		bit(3, 3, 3, -1, 999)
 		bit(3, 3, 6, 3, 999)
+	elseif kind == "Universal" then
+		outline(16, 16, 0, 0, 999, 2)
+		bit(8, 2, 0, 0, 1)
+		bit(2, 8, 0, 0, 1)
 	elseif kind == "Gameslist" then
 		outline(19, 17, 0, 0, 4)
 		for i = -1, 1 do
@@ -514,7 +518,7 @@ end
 local function newTab(name, label, order)
 	local b = Instance.new("TextButton")
 	b.Name = name .. "Tab"
-	b.Size = UDim2.new(1, 0, 0, 48)
+	b.Size = UDim2.new(1, 0, 0, 42)
 	b.BackgroundColor3 = TAB_INACT_1
 	b.BackgroundTransparency = 1
 	b.AutoButtonColor = false
@@ -575,7 +579,7 @@ local function newTab(name, label, order)
 	t.BackgroundTransparency = 1
 	t.Text = label
 	t.TextColor3 = LIGHT_GRAY
-	t.TextSize = 17
+	t.TextSize = 16
 	t.Font = F_STUD
 	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.ZIndex = 406
@@ -607,7 +611,7 @@ local function newTab(name, label, order)
 			tabGrad.Color = ColorSequence.new(theme.Top, theme.Bot)
 			t.TextColor3 = WHITE
 			tw(hl, GLIDE, {BackgroundTransparency = 0.1})
-			tw(mark, BOUNCE, {Size = UDim2.new(0, 4, 0, 24)})
+			tw(mark, BOUNCE, {Size = UDim2.new(0, 4, 0, 22)})
 		else
 			tabGrad.Color = ColorSequence.new(TAB_INACT_1, TAB_INACT_2)
 			t.TextColor3 = LIGHT_GRAY
@@ -621,12 +625,13 @@ end
 
 newTab("Home",      "Home",       1)
 newTab("Game",      "Game",       2)
-newTab("Gameslist", "Games List", 3)
-newTab("Settings",  "Settings",   4)
-newTab("Credits",   "Credits",    5)
+newTab("Universal", "Universal",  3)
+newTab("Gameslist", "Games List", 4)
+newTab("Settings",  "Settings",   5)
+newTab("Credits",   "Credits",    6)
 
 --------------------------------------------------------------
--- SECTION CONTAINERS (OPAQUE DARK GLASS - ALL TABS 100% VISIBLE FIX)
+-- SECTION CONTAINERS (OPAQUE DARK GLASS - ALL TABS VISIBLE FIX)
 --------------------------------------------------------------
 local SectionContainers = Instance.new("Frame")
 SectionContainers.Name = "sectionContainers"
@@ -699,6 +704,7 @@ end
 
 newSection("homeframe")
 newSection("gameFrame")
+newSection("universalframe")
 newSection("gamelistFrame")
 newSection("settingsFrame")
 newSection("creditsFrame")
@@ -881,7 +887,7 @@ do
 end
 
 --------------------------------------------------------------
--- HOME LABELS (CASUAL SCRIPT DEV STYLE)
+-- HOME LABELS
 --------------------------------------------------------------
 local home = SectionContainers.homeframe
 local function homeLabel(name, text, col, size, order)
