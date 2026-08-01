@@ -1,6 +1,6 @@
 --// LOADED HUB - loader
---// Stud UI Pack Edition - 100% Functional & Compatible
---// Includes Cut Grass for Brainrots, Obby as a Brainrot, and Scary Shawarma Kiosk: The Anomaly
+--// Stud UI Pack Edition - Includes Universal Aimbot & FOV Circle Section
+--// Fully compatible with ui.lua & elements.lua
 
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
@@ -15,6 +15,13 @@ local players          = game:GetService("Players")
 local exservice
 pcall(function() exservice = game:GetService("ExperienceService") end)
 local plr = players.LocalPlayer
+
+--------------------------------------------------------------
+-- PLACE ID ALIAS MAP
+--------------------------------------------------------------
+local PLACE_ALIASES = {
+	["128001665358186"] = "137826330724902", -- Scary Shawarma (In Game) -> Main Place ID
+}
 
 --------------------------------------------------------------
 -- REPO
@@ -110,7 +117,7 @@ local function armTeleport()
 	local cfg = readCfg()
 	if cfg.settings and cfg.settings.auto_exec_on_tp == false then return false end
 	local ok = pcall(queueTp, tpPayload())
-	if not ok then warn("[hub] couldnt queue the script for the teleport") end
+	if not ok then warn("[hub] couldnt queue script for teleport") end
 	return ok
 end
 
@@ -135,7 +142,7 @@ local function fetch(url, cachePath)
 	if not ok then
 		warn("[hub] http failed on " .. url .. " -> " .. tostring(body))
 	elseif body == "404: Not Found" then
-		warn("[hub] 404, that file is not on the repo: " .. url)
+		warn("[hub] 404 file not found: " .. url)
 	elseif not body or #body == 0 then
 		warn("[hub] empty answer from " .. url)
 	end
@@ -146,7 +153,7 @@ local function fetch(url, cachePath)
 		return body
 	end
 	if hasFS and cachePath and isfile(cachePath) then
-		warn("[hub] falling back to the copy on disk: " .. cachePath)
+		warn("[hub] falling back to disk copy: " .. cachePath)
 		local ok2, cached = pcall(function() return readfile(cachePath) end)
 		if ok2 then return cached end
 	end
@@ -154,25 +161,13 @@ local function fetch(url, cachePath)
 end
 
 local function decode(raw, what, fallback)
-	if not raw then
-		warn("[hub] no " .. what .. ", couldnt download it")
-		return fallback
-	end
+	if not raw then return fallback end
 	local ok, dec = pcall(function() return httpservice:JSONDecode(raw) end)
-	if not ok then
-		warn("[hub] " .. what .. " is broken json -> " .. tostring(dec))
-		warn("[hub] check for a comma after the last } , thats the usual one")
-		return fallback
-	end
-	if type(dec) ~= "table" then
-		warn("[hub] " .. what .. " didnt decode into a table")
-		return fallback
-	end
-	return dec
+	return (ok and type(dec) == "table") and dec or fallback
 end
 
 --------------------------------------------------------------
--- UI
+-- UI INITIALIZATION
 --------------------------------------------------------------
 pcall(function()
 	local root = hui and hui() or coregui
@@ -207,6 +202,10 @@ local Sections = {
 	Game = {
 		TabBtn = TabList.GameTab,
 		Container = SectionContainers.gameFrame
+	},
+	Universal = {
+		TabBtn = TabList.UniversalTab,
+		Container = SectionContainers.universalframe
 	},
 	GamesList = {
 		TabBtn = TabList.GameslistTab,
@@ -332,7 +331,7 @@ H.versionLabel.Text = "ver: " .. VERSION
 H.placeLabel.Text   = "placeid: " .. tostring(game.PlaceId)
 
 --------------------------------------------------------------
--- REMOTE DATA
+-- REMOTE DATA & DEFAULT GAMES
 --------------------------------------------------------------
 pcall(function() ui:SetAttribute("busy", true) end)
 local elementsSrc = fetch(getgitpath("src") .. "elements.lua", FOLDER .. "/src_elements.lua")
@@ -345,11 +344,11 @@ local elements = loadstring(elementsSrc)()
 local gameListRaw = fetch(getgitpath("src") .. "gameslist.json", FOLDER .. "/gameslist.json")
 local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/credits.json")
 
--- Default Games List including Scary Shawarma Kiosk: The Anomaly
 local defaultGames = {
 	{ game = "Cut Grass for Brainrots",           id = "97365843755210",  status = "🟢" },
 	{ game = "Obby as a Brainrot",                id = "77862067599263",  status = "🟢" },
-	{ game = "Scary Shawarma Kiosk: The Anomaly", id = "137826330724902", status = "🟢" }
+	{ game = "Scary Shawarma Kiosk: The Anomaly", id = "137826330724902", status = "🟢" },
+	{ game = "Scary Shawarma (In Game)",          id = "128001665358186", status = "🟢" }
 }
 
 local gameList    = decode(gameListRaw, "gameslist.json", defaultGames)
@@ -362,14 +361,21 @@ local function gameFromList(pid)
 	for _, g in ipairs(gameList) do
 		if tostring(g.id) == pid then return g end
 	end
+	if PLACE_ALIASES[pid] then
+		local mappedId = PLACE_ALIASES[pid]
+		for _, g in ipairs(gameList) do
+			if tostring(g.id) == mappedId then return g end
+		end
+	end
 	return nil
 end
 
 --------------------------------------------------------------
--- GAME (PlaceId detection)
+-- GAME (PlaceId Detection)
 --------------------------------------------------------------
-local pid = tostring(game.PlaceId)
-local hereGame = gameFromList(pid)
+local rawPid = tostring(game.PlaceId)
+local pid = PLACE_ALIASES[rawPid] or rawPid
+local hereGame = gameFromList(rawPid) or gameFromList(pid)
 
 local wantId = (getgenv and getgenv().FORCE_MODULE) and tostring(getgenv().FORCE_MODULE) or pid
 local okGame, gamePath = pcall(function()
@@ -379,16 +385,20 @@ end)
 local loadedModule = false
 if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" then
 	local handledLocally = false
-	if hasFS and isfile(FOLDER .. "/games/" .. wantId .. ".lua") then
-		local okLocal, err = pcall(function()
-			local mod = loadstring(readfile(FOLDER .. "/games/" .. wantId .. ".lua"))()
-			mod(Sections.Game.Container, readCfg(), elements)
-		end)
-		if okLocal then
-			handledLocally = true
-			loadedModule = true
-		else
-			warn("[hub] local module blew up:", err)
+	local localCheckPaths = { wantId, rawPid }
+	for _, chkId in ipairs(localCheckPaths) do
+		if hasFS and isfile(FOLDER .. "/games/" .. chkId .. ".lua") then
+			local okLocal, err = pcall(function()
+				local mod = loadstring(readfile(FOLDER .. "/games/" .. chkId .. ".lua"))()
+				mod(Sections.Game.Container, readCfg(), elements)
+			end)
+			if okLocal then
+				handledLocally = true
+				loadedModule = true
+				break
+			else
+				warn("[hub] local module blew up:", err)
+			end
 		end
 	end
 
@@ -434,10 +444,137 @@ if loadedModule then
 end
 
 --------------------------------------------------------------
+-- UNIVERSAL SECTION (AIMBOT & FOV CIRCLE ENGINE)
+--------------------------------------------------------------
+local camera = workspace.CurrentCamera
+local aimbotEnabled = false
+local fovEnabled    = false
+local fovRadius     = 120
+local aimSmooth     = 0.35
+local aimPart       = "Head"
+local teamCheck     = true
+
+-- FOV Circle
+local fovCircle = pcall(function() return Drawing.new("Circle") end) and Drawing.new("Circle") or nil
+if fovCircle then
+	fovCircle.Thickness = 2
+	fovCircle.Color = Color3.fromRGB(0, 230, 255)
+	fovCircle.Filled = false
+	fovCircle.Transparency = 0.85
+	fovCircle.Radius = fovRadius
+	fovCircle.Visible = false
+end
+
+runservice.RenderStepped:Connect(function()
+	if fovCircle then
+		fovCircle.Radius = fovRadius
+		fovCircle.Visible = fovEnabled and MainFrame.Visible
+		if fovCircle.Visible then
+			local mousePos = userinputservice:GetMouseLocation()
+			fovCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
+		end
+	end
+end)
+
+local function getClosestPlayerToMouse()
+	local closest = nil
+	local shortestDist = fovRadius
+	local mousePos = userinputservice:GetMouseLocation()
+
+	for _, p in ipairs(players:GetPlayers()) do
+		if p ~= plr and p.Character and p.Character:FindFirstChild(aimPart) then
+			local hum = p.Character:FindFirstChildOfClass("Humanoid")
+			if hum and hum.Health > 0 then
+				if not teamCheck or (p.Team ~= plr.Team) then
+					local part = p.Character[aimPart]
+					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+					if onScreen then
+						local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+						if dist < shortestDist then
+							shortestDist = dist
+							closest = part
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return closest
+end
+
+local isAiming = false
+userinputservice.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isAiming = true
+	end
+end)
+
+userinputservice.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isAiming = false
+	end
+end)
+
+runservice.RenderStepped:Connect(function()
+	if aimbotEnabled and isAiming then
+		local targetPart = getClosestPlayerToMouse()
+		if targetPart then
+			local targetCF = CFrame.new(camera.CFrame.Position, targetPart.Position)
+			camera.CFrame = camera.CFrame:Lerp(targetCF, aimSmooth)
+		end
+	end
+end)
+
+-- Universal UI Elements
+local UContainer = Sections.Universal.Container
+elements:Header(UContainer, "universal aimbot & fov")
+
+elements:Toggle("Aimbot (Hold Right Click)", UContainer, false, function(v)
+	aimbotEnabled = v
+	elements:Notify("aimbot", v and "enabled (Hold RMB to aim)" or "disabled", "info", 2)
+end)
+
+elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
+	fovEnabled = v
+	if fovCircle then fovCircle.Visible = v end
+	elements:Notify("fov circle", v and "enabled" or "disabled", "info", 1.8)
+end)
+
+elements:Toggle("Team Check", UContainer, true, function(v)
+	teamCheck = v
+	elements:Notify("team check", v and "enabled" or "disabled", "info", 1.8)
+end)
+
+elements:Divider(UContainer)
+elements:Header(UContainer, "aimbot settings")
+
+elements:Textbox("FOV Radius (30 - 500)", UContainer, tostring(fovRadius), function(txt)
+	local num = tonumber(txt)
+	if num and num >= 30 and num <= 500 then
+		fovRadius = num
+		if fovCircle then fovCircle.Radius = num end
+		elements:Notify("fov set", tostring(num), "ok", 1.8)
+	else
+		elements:Notify("invalid fov", "enter number 30 - 500", "warn", 2)
+	end
+end)
+
+elements:Textbox("Aim Part (Head / HumanoidRootPart)", UContainer, aimPart, function(txt)
+	if txt == "Head" or txt == "HumanoidRootPart" or txt == "Torso" then
+		aimPart = txt
+		elements:Notify("aim part set", txt, "ok", 1.8)
+	else
+		elements:Notify("invalid part", "use Head or HumanoidRootPart", "warn", 2)
+	end
+end)
+
+--------------------------------------------------------------
 -- GAMES LIST
 --------------------------------------------------------------
 local function jumpTo(g)
-	if tostring(g.id) == pid then
+	if tostring(g.id) == pid or tostring(g.id) == rawPid then
 		elements:Notify("already here", g.game, "info")
 		return
 	end
@@ -541,8 +678,8 @@ elements:Divider(Sections.Settings.Container)
 elements:Header(Sections.Settings.Container, "misc")
 
 elements:Button("copy placeid", Sections.Settings.Container, function()
-	pcall(function() setclipboard(pid) end)
-	elements:Notify("copied", pid, "ok")
+	pcall(function() setclipboard(rawPid) end)
+	elements:Notify("copied", rawPid, "ok")
 end)
 
 elements:Button("clear cache", Sections.Settings.Container, function()
