@@ -1,9 +1,10 @@
 --// LOADED HUB - loader
---// Stud UI Pack Edition - Anti-Jitter Universal Aimbot (Sticky Target Lock)
---// Features: Sticky Target Lock (No Screen Shake/Jitter), FOV Circle, FFA Support
-
+--// Stud UI Pack Edition - Universal Aimbot + ESP
+--// v3 - wall check on the aimbot (no more locking through walls)
+--//      and esp/chams so you can actually see them
 local hui              = gethui or get_hidden_gui
 local getexec          = identifyexecutor
+
 local coregui          = game:GetService("CoreGui")
 local userinputservice = game:GetService("UserInputService")
 local httpservice      = game:GetService("HttpService")
@@ -14,6 +15,7 @@ local players          = game:GetService("Players")
 -- ExperienceService is not on every client
 local exservice
 pcall(function() exservice = game:GetService("ExperienceService") end)
+
 local plr = players.LocalPlayer
 
 --------------------------------------------------------------
@@ -69,7 +71,9 @@ if hasFS then
 		if not isfile(CFG_FILE) then
 			writefile(CFG_FILE, httpservice:JSONEncode(DEFAULTS))
 		else
-			local dec = httpservice:JSONEncode(readfile(CFG_FILE))
+			-- this said JSONEncode before, which handed back a string and
+			-- silently threw every saved setting away. took me ages to spot
+			local dec = httpservice:JSONDecode(readfile(CFG_FILE))
 			local changed = false
 			for sec, vals in pairs(DEFAULTS) do
 				if type(dec[sec]) ~= "table" then dec[sec] = {} changed = true end
@@ -85,7 +89,7 @@ end
 local function readCfg()
 	if not hasFS then return DEFAULTS end
 	local ok, dec = pcall(function()
-		return httpservice:JSONEncode(readfile(CFG_FILE))
+		return httpservice:JSONDecode(readfile(CFG_FILE))
 	end)
 	return (ok and type(dec) == "table") and dec or DEFAULTS
 end
@@ -97,7 +101,6 @@ local queueTp = (syn and syn.queue_on_teleport)
 	or queue_on_teleport
 	or (fluxus and fluxus.queue_on_teleport)
 	or queueonteleport
-	or (secure_load and nil)
 
 local function tpPayload()
 	return ([[
@@ -139,6 +142,7 @@ end
 
 local function fetch(url, cachePath)
 	local ok, body = pcall(function() return game:HttpGet(bust(url)) end)
+
 	if not ok then
 		warn("[hub] http failed on " .. url .. " -> " .. tostring(body))
 	elseif body == "404: Not Found" then
@@ -146,12 +150,14 @@ local function fetch(url, cachePath)
 	elseif not body or #body == 0 then
 		warn("[hub] empty answer from " .. url)
 	end
+
 	if ok and body and #body > 0 and body ~= "404: Not Found" then
 		if hasFS and cachePath then
 			pcall(function() writefile(cachePath, body) end)
 		end
 		return body
 	end
+
 	if hasFS and cachePath and isfile(cachePath) then
 		warn("[hub] falling back to disk copy: " .. cachePath)
 		local ok2, cached = pcall(function() return readfile(cachePath) end)
@@ -163,6 +169,9 @@ end
 local function decode(raw, what, fallback)
 	if not raw then return fallback end
 	local ok, dec = pcall(function() return httpservice:JSONDecode(raw) end)
+	if not ok then
+		warn("[hub] " .. what .. " is broken json -> " .. tostring(dec))
+	end
 	return (ok and type(dec) == "table") and dec or fallback
 end
 
@@ -173,6 +182,9 @@ pcall(function()
 	local root = hui and hui() or coregui
 	local old = root:FindFirstChild("\0LoadedHub")
 	if old then old:Destroy() end
+	-- the esp folder lives outside the gui so it survives a reload
+	local oldEsp = root:FindFirstChild("\0LH_esp")
+	if oldEsp then oldEsp:Destroy() end
 end)
 
 local uiSrc = fetch(getgitpath("src") .. "ui.lua", FOLDER .. "/src_ui.lua")
@@ -183,6 +195,7 @@ end
 
 local ui = loadstring(uiSrc)()
 ui.Parent = hui and hui() or coregui
+
 pcall(function() if syn and syn.protect_gui then syn.protect_gui(ui) end end)
 pcall(function() if protectgui then protectgui(ui) end end)
 
@@ -231,6 +244,7 @@ for _, sect in pairs(Sections) do
 			end
 		end
 	end)
+
 	sect.TabBtn.MouseLeave:Connect(function()
 		for _, stroke in pairs(sect.TabBtn:GetChildren()) do
 			if stroke.Name == "InnerShadow" then
@@ -238,17 +252,21 @@ for _, sect in pairs(Sections) do
 			end
 		end
 	end)
+
 	sect.TabBtn.MouseButton1Click:Connect(function()
 		if CurSection == sect then return end
+
 		if CurSection then
 			CurSection.TabBtn.BackgroundTransparency = 1
 			CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0),
 				Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
 		end
+
 		sect.TabBtn.BackgroundTransparency = 0
 		sect.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0),
 			Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
 		sect.Container.Visible = true
+
 		CurSection = sect
 	end)
 end
@@ -293,6 +311,7 @@ Topbar.InputBegan:Connect(function(input)
 		dragging = true
 		mousePos = input.Position
 		framePos = MainFrame.Position
+
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -324,6 +343,7 @@ end)
 -- HOME LABELS
 --------------------------------------------------------------
 local H = Sections.Home.Container
+
 H.discan.Text       = H.discan.Text:gsub("redacted", DISCORD)
 H.bugsLabel.Text    = H.bugsLabel.Text:gsub("redacted", DISCORD)
 H.execLabel.Text    = "exec: " .. tostring((pcall(getexec) and getexec()) or "unknown")
@@ -334,6 +354,7 @@ H.placeLabel.Text   = "placeid: " .. tostring(game.PlaceId)
 -- REMOTE DATA & DEFAULT GAMES
 --------------------------------------------------------------
 pcall(function() ui:SetAttribute("busy", true) end)
+
 local elementsSrc = fetch(getgitpath("src") .. "elements.lua", FOLDER .. "/src_elements.lua")
 if not elementsSrc then
 	warn("[hub] couldnt fetch elements.lua")
@@ -345,15 +366,16 @@ local gameListRaw = fetch(getgitpath("src") .. "gameslist.json", FOLDER .. "/gam
 local creditsRaw  = fetch(getgitpath("src") .. "credits.json",   FOLDER .. "/credits.json")
 
 local defaultGames = {
-	{ game = "Cut Grass for Brainrots",           id = "97365843755210",  status = "🟢" },
-	{ game = "Obby as a Brainrot",                id = "77862067599263",  status = "🟢" },
-	{ game = "Scary Shawarma Kiosk: The Anomaly", id = "137826330724902", status = "🟢" },
-	{ game = "Scary Shawarma (In Game)",          id = "128001665358186", status = "🟢" }
+	{ game = "Cut Grass for Brainrots",           id = "97365843755210",  status = "\240\159\159\162" },
+	{ game = "Obby as a Brainrot",                id = "77862067599263",  status = "\240\159\159\162" },
+	{ game = "Scary Shawarma Kiosk: The Anomaly", id = "137826330724902", status = "\240\159\159\162" },
+	{ game = "Scary Shawarma (In Game)",          id = "128001665358186", status = "\240\159\159\162" }
 }
 
 local gameList    = decode(gameListRaw, "gameslist.json", defaultGames)
 local creditsList = decode(creditsRaw,   "credits.json",   {})
 if #gameList == 0 then gameList = defaultGames end
+
 pcall(function() ui:SetAttribute("busy", false) end)
 
 local function gameFromList(pid)
@@ -378,14 +400,17 @@ local pid = PLACE_ALIASES[rawPid] or rawPid
 local hereGame = gameFromList(rawPid) or gameFromList(pid)
 
 local wantId = (getgenv and getgenv().FORCE_MODULE) and tostring(getgenv().FORCE_MODULE) or pid
+
 local okGame, gamePath = pcall(function()
 	return game:HttpGet(getgitpath("games") .. wantId .. ".lua")
 end)
 
 local loadedModule = false
+
 if not okGame or not gamePath or #gamePath == 0 or gamePath == "404: Not Found" then
 	local handledLocally = false
 	local localCheckPaths = { wantId, rawPid }
+
 	for _, chkId in ipairs(localCheckPaths) do
 		if hasFS and isfile(FOLDER .. "/games/" .. chkId .. ".lua") then
 			local okLocal, err = pcall(function()
@@ -423,10 +448,12 @@ else
 			writefile(FOLDER .. "/games/" .. wantId .. ".lua", gamePath)
 		end)
 	end
+
 	local okRun, err = pcall(function()
 		local gameModule = loadstring(gamePath)()
 		gameModule(Sections.Game.Container, readCfg(), elements)
 	end)
+
 	if okRun then
 		loadedModule = true
 	else
@@ -444,19 +471,26 @@ if loadedModule then
 end
 
 --------------------------------------------------------------
--- UNIVERSAL AIMBOT & FOV ENGINE (STICKY TARGET LOCK - NO JITTER / SCREEN SHAKE)
+-- UNIVERSAL AIMBOT (STICKY LOCK + WALL CHECK)
 --------------------------------------------------------------
 local camera = workspace.CurrentCamera
 local aimbotEnabled = false
 local fovEnabled    = false
 local fovRadius     = 150
-local aimSmooth     = 1.0     -- 1.0 = Instant Head Lock, 0.2 = Smooth
+local aimSmooth     = 1.0     -- 1.0 = instant, 0.2 = smooth
 local aimPart       = "Head"
-local teamCheck     = false   -- Off by default for FFA compatibility!
+local teamCheck     = false   -- off for FFA
 local isAiming      = false
-local lockedTargetPart = nil   -- Sticky Lock (Eliminates Target Swapping Shaking!)
+local lockedTargetPart = nil
 
--- Drawing FOV Circle
+local wallCheck  = true   -- dont lock onto people behind cover
+local dropOnLoss = true   -- and let them go the moment they hide
+
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	camera = workspace.CurrentCamera
+end)
+
+-- FOV circle
 local fovCircle = nil
 pcall(function()
 	if Drawing and Drawing.new then
@@ -471,26 +505,56 @@ pcall(function()
 	end
 end)
 
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-	camera = workspace.CurrentCamera
-end)
-
 runservice.RenderStepped:Connect(function()
 	if fovCircle then
 		fovCircle.Radius = fovRadius
 		fovCircle.Visible = fovEnabled and MainFrame.Visible
 		if fovCircle.Visible then
-			local mousePos = userinputservice:GetMouseLocation()
-			fovCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
+			local mp = userinputservice:GetMouseLocation()
+			fovCircle.Position = Vector2.new(mp.X, mp.Y)
 		end
 	end
 end)
+
+--------------------------------------------------------------
+-- LINE OF SIGHT
+-- one raycast from the camera to the part. i skip my own character
+-- and the target's, otherwise his own arm counts as a wall and
+-- nothing is ever visible
+--------------------------------------------------------------
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.IgnoreWater = true
+
+local function canSee(part)
+	if not wallCheck then return true end
+	if not part or not part.Parent then return false end
+
+	local origin = camera.CFrame.Position
+	local dest   = part.Position
+	local dir    = dest - origin
+	if dir.Magnitude < 1 then return true end
+
+	local skip = {part.Parent}
+	if plr.Character then table.insert(skip, plr.Character) end
+	rayParams.FilterDescendantsInstances = skip
+
+	local hit = workspace:Raycast(origin, dir, rayParams)
+	if not hit then return true end
+
+	-- the ray lands on the edge of the hitbox, not the centre. without
+	-- this margin you get false negatives constantly
+	return (hit.Position - dest).Magnitude < 2.5
+end
 
 local function getTargetHeadPart(model)
 	if not model or not model:IsA("Model") or not model.Parent then return nil end
 	local part = model:FindFirstChild(aimPart)
 	if not part then
-		part = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso")
+		part = model:FindFirstChild("Head")
+			or model:FindFirstChild("HumanoidRootPart")
+			or model:FindFirstChild("Torso")
+			or model:FindFirstChild("UpperTorso")
 	end
 	return part
 end
@@ -501,13 +565,16 @@ local function isValidLockedTarget(part)
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	if not hum or hum.Health <= 0 then return false end
 
-	local mousePos = userinputservice:GetMouseLocation()
-	local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+	local mp = userinputservice:GetMouseLocation()
+	local sp, onScreen = camera:WorldToViewportPoint(part.Position)
 	if not onScreen then return false end
 
-	-- Allow 1.6x FOV margin while tracking target so lock stays sticky
-	local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+	-- 1.6x margin while tracking so the lock stays sticky
+	local dist = (Vector2.new(sp.X, sp.Y) - Vector2.new(mp.X, mp.Y)).Magnitude
 	if dist > (fovRadius * 1.6) then return false end
+
+	-- ducked behind cover, drop him instead of tracking a wall
+	if dropOnLoss and not canSee(part) then return false end
 
 	return true
 end
@@ -515,53 +582,38 @@ end
 local function getClosestTargetToMouse()
 	local closestPart = nil
 	local shortestDist = fovRadius
-	local mousePos = userinputservice:GetMouseLocation()
+	local mp = userinputservice:GetMouseLocation()
+	local mv = Vector2.new(mp.X, mp.Y)
 
-	-- 1. Scan Players
+	local function consider(model)
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if not hum or hum.Health <= 0 then return end
+		local part = getTargetHeadPart(model)
+		if not part then return end
+		local sp, onScreen = camera:WorldToViewportPoint(part.Position)
+		if not onScreen then return end
+		local dist = (Vector2.new(sp.X, sp.Y) - mv).Magnitude
+		if dist >= shortestDist then return end
+		-- checked last on purpose, the raycast is the expensive bit
+		if not canSee(part) then return end
+		shortestDist = dist
+		closestPart = part
+	end
+
+	-- players first
 	for _, p in ipairs(players:GetPlayers()) do
 		if p ~= plr and p.Character then
-			local hum = p.Character:FindFirstChildOfClass("Humanoid")
-			if hum and hum.Health > 0 then
-				local sameTeam = false
-				if teamCheck and p.Team and plr.Team and p.Team == plr.Team then
-					sameTeam = true
-				end
-
-				if not sameTeam then
-					local part = getTargetHeadPart(p.Character)
-					if part then
-						local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-						if onScreen then
-							local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-							if dist < shortestDist then
-								shortestDist = dist
-								closestPart = part
-							end
-						end
-					end
-				end
-			end
+			local same = teamCheck and p.Team and plr.Team and p.Team == plr.Team
+			if not same then consider(p.Character) end
 		end
 	end
 
-	-- 2. Scan NPCs / Bots
+	-- then npcs, only if no player matched
 	if not closestPart then
 		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj ~= plr.Character and not players:GetPlayerFromCharacter(obj) then
-				local hum = obj:FindFirstChildOfClass("Humanoid")
-				if hum and hum.Health > 0 then
-					local part = getTargetHeadPart(obj)
-					if part then
-						local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-						if onScreen then
-							local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-							if dist < shortestDist then
-								shortestDist = dist
-								closestPart = part
-							end
-						end
-					end
-				end
+			if obj:IsA("Model") and obj ~= plr.Character
+			and not players:GetPlayerFromCharacter(obj) then
+				consider(obj)
 			end
 		end
 	end
@@ -569,98 +621,373 @@ local function getClosestTargetToMouse()
 	return closestPart
 end
 
--- Aimbot Key / Mouse Input (RMB Hold with Sticky Lock)
 userinputservice.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = true
-		lockedTargetPart = getClosestTargetToMouse() -- Lock onto target!
+		lockedTargetPart = getClosestTargetToMouse()
 	end
 end)
 
 userinputservice.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = false
-		lockedTargetPart = nil -- Release target lock!
+		lockedTargetPart = nil
 	end
 end)
 
--- High Priority Anti-Jitter Camera RenderStep
 runservice:BindToRenderStep("LoadedHubAimbotLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
-	if aimbotEnabled and isAiming then
-		-- Validate or acquire target lock
-		if not isValidLockedTarget(lockedTargetPart) then
-			lockedTargetPart = getClosestTargetToMouse()
+	if not (aimbotEnabled and isAiming) then return end
+
+	if not isValidLockedTarget(lockedTargetPart) then
+		lockedTargetPart = getClosestTargetToMouse()
+	end
+
+	if lockedTargetPart then
+		local desiredCF = CFrame.new(camera.CFrame.Position, lockedTargetPart.Position)
+		if aimSmooth >= 0.95 then
+			camera.CFrame = desiredCF
+		else
+			-- framerate independent, no jitter
+			local f = math.clamp(dt * (aimSmooth * 28), 0.05, 1)
+			camera.CFrame = camera.CFrame:Lerp(desiredCF, f)
+		end
+	end
+end)
+
+--------------------------------------------------------------
+-- ESP
+-- highlights for the body, billboard for the text. tried Drawing
+-- boxes first but they fight the camera every frame and wobble.
+-- highlights are basically free and render through walls
+--------------------------------------------------------------
+local espEnabled   = false
+local espChams     = true
+local espName      = true
+local espHealth    = true
+local espTracer    = false
+local espTeamCheck = false
+local espMaxDist   = 1000
+
+local espFolder = Instance.new("Folder")
+espFolder.Name = "\0LH_esp"
+espFolder.Parent = hui and hui() or coregui
+
+local espCache = {}
+
+local function clearEsp(model)
+	local e = espCache[model]
+	if not e then return end
+	if e.hl then e.hl:Destroy() end
+	if e.tag then e.tag:Destroy() end
+	if e.line then pcall(function() e.line:Remove() end) end
+	espCache[model] = nil
+end
+
+local function clearAllEsp()
+	for m in pairs(espCache) do clearEsp(m) end
+end
+
+local function espColor(model)
+	local p = players:GetPlayerFromCharacter(model)
+	if p and plr.Team and p.Team then
+		return p.Team == plr.Team and Color3.fromRGB(90, 200, 255)
+			or Color3.fromRGB(255, 80, 80)
+	end
+	return p and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(255, 190, 60)
+end
+
+local function buildEsp(model)
+	local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+	if not root then return nil end
+
+	local e = {}
+
+	local hl = Instance.new("Highlight")
+	hl.Adornee = model
+	hl.FillColor = espColor(model)
+	hl.FillTransparency = 0.62
+	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+	hl.OutlineTransparency = 0.15
+	-- this line is what makes it show through walls
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent = espFolder
+	e.hl = hl
+
+	local tag = Instance.new("BillboardGui")
+	tag.Adornee = root
+	tag.Size = UDim2.new(0, 190, 0, 34)
+	tag.StudsOffset = Vector3.new(0, 2.6, 0)
+	tag.AlwaysOnTop = true
+	tag.MaxDistance = espMaxDist
+	tag.Parent = espFolder
+
+	local nm = Instance.new("TextLabel")
+	nm.Size = UDim2.new(1, 0, 0, 17)
+	nm.BackgroundTransparency = 1
+	nm.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nm.TextSize = 14
+	nm.Font = Enum.Font.FredokaOne
+	nm.Text = model.Name
+	nm.Parent = tag
+	local ns = Instance.new("UIStroke")
+	ns.Thickness = 2
+	ns.Color = Color3.fromRGB(0, 0, 0)
+	ns.Parent = nm
+	e.nm = nm
+
+	local hp = Instance.new("TextLabel")
+	hp.Size = UDim2.new(1, 0, 0, 15)
+	hp.Position = UDim2.new(0, 0, 0, 16)
+	hp.BackgroundTransparency = 1
+	hp.TextColor3 = Color3.fromRGB(120, 235, 110)
+	hp.TextSize = 12
+	hp.Font = Enum.Font.FredokaOne
+	hp.Text = ""
+	hp.Parent = tag
+	local hs = Instance.new("UIStroke")
+	hs.Thickness = 2
+	hs.Color = Color3.fromRGB(0, 0, 0)
+	hs.Parent = hp
+	e.hp = hp
+
+	e.tag = tag
+	e.root = root
+
+	if Drawing and Drawing.new then
+		pcall(function()
+			local l = Drawing.new("Line")
+			l.Thickness = 1
+			l.Color = Color3.fromRGB(255, 255, 255)
+			l.Transparency = 0.6
+			l.Visible = false
+			e.line = l
+		end)
+	end
+
+	espCache[model] = e
+	return e
+end
+
+local function espEligible(model)
+	if model == plr.Character then return false end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 then return false end
+	if espTeamCheck then
+		local p = players:GetPlayerFromCharacter(model)
+		if p and p.Team and plr.Team and p.Team == plr.Team then return false end
+	end
+	return true
+end
+
+-- runs on Heartbeat with a 0.1s accumulator, not every frame.
+-- scanning the whole workspace 240 times a second kills your fps
+local espAccum = 0
+runservice.Heartbeat:Connect(function(dt)
+	if not espEnabled then return end
+
+	espAccum = espAccum + dt
+	if espAccum < 0.1 then
+		-- tracers are the only thing that has to keep up with the camera
+		for _, e in pairs(espCache) do
+			if e.line then
+				if espTracer and e.root and e.root.Parent then
+					local sp, on = camera:WorldToViewportPoint(e.root.Position)
+					if on then
+						local vp = camera.ViewportSize
+						e.line.From = Vector2.new(vp.X / 2, vp.Y)
+						e.line.To = Vector2.new(sp.X, sp.Y)
+						e.line.Color = e.hl and e.hl.FillColor or Color3.new(1, 1, 1)
+						e.line.Visible = true
+					else
+						e.line.Visible = false
+					end
+				else
+					e.line.Visible = false
+				end
+			end
+		end
+		return
+	end
+	espAccum = 0
+
+	local seen = {}
+	local myRoot = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+
+	local function handle(model)
+		if not espEligible(model) then return end
+		local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+		if myRoot and root and (root.Position - myRoot.Position).Magnitude > espMaxDist then
+			return
 		end
 
-		if lockedTargetPart then
-			local targetPos = lockedTargetPart.Position
-			local camPos = camera.CFrame.Position
-			local desiredCF = CFrame.new(camPos, targetPos)
+		seen[model] = true
+		local e = espCache[model] or buildEsp(model)
+		if not e then return end
 
-			if aimSmooth >= 0.95 then
-				camera.CFrame = desiredCF
-			else
-				-- Framerate-independent smooth interpolation (No Jitter)
-				local lerpFactor = math.clamp(dt * (aimSmooth * 28), 0.05, 1)
-				camera.CFrame = camera.CFrame:Lerp(desiredCF, lerpFactor)
+		local col = espColor(model)
+		e.hl.Enabled = espChams
+		e.hl.FillColor = col
+		e.hl.Adornee = model
+
+		e.tag.Enabled = espName or espHealth
+		e.nm.Visible = espName
+		e.hp.Visible = espHealth
+
+		if espName then
+			local p = players:GetPlayerFromCharacter(model)
+			e.nm.Text = p and p.DisplayName or model.Name
+			e.nm.TextColor3 = col
+		end
+
+		if espHealth then
+			local hum = model:FindFirstChildOfClass("Humanoid")
+			if hum then
+				local pct = math.floor((hum.Health / math.max(hum.MaxHealth, 1)) * 100)
+				local dst = ""
+				if myRoot and e.root and e.root.Parent then
+					dst = "  " .. math.floor((e.root.Position - myRoot.Position).Magnitude) .. "m"
+				end
+				e.hp.Text = pct .. "%" .. dst
+				e.hp.TextColor3 = pct > 60 and Color3.fromRGB(120, 235, 110)
+					or (pct > 30 and Color3.fromRGB(250, 190, 60)
+					or Color3.fromRGB(250, 90, 90))
 			end
 		end
 	end
+
+	for _, p in ipairs(players:GetPlayers()) do
+		if p ~= plr and p.Character then handle(p.Character) end
+	end
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and not players:GetPlayerFromCharacter(obj) then
+			if obj:FindFirstChildOfClass("Humanoid") then handle(obj) end
+		end
+	end
+
+	-- anything that died or walked out of range
+	for model in pairs(espCache) do
+		if not seen[model] then clearEsp(model) end
+	end
 end)
 
--- Universal UI Elements
+--------------------------------------------------------------
+-- UNIVERSAL TAB UI
+--------------------------------------------------------------
 local UContainer = Sections.Universal.Container
-elements:Header(UContainer, "universal aimbot & fov")
+
+elements:Header(UContainer, "aimbot")
 
 elements:Toggle("Aimbot (Hold Right Click)", UContainer, false, function(v)
 	aimbotEnabled = v
 	if not v then lockedTargetPart = nil end
-	elements:Notify("aimbot", v and "enabled (Hold RMB to Lock Head)" or "disabled", "info", 2)
+	elements:Notify("aimbot", v and "hold RMB to lock" or "disabled", "info", 2)
+end)
+
+elements:Toggle("Wall Check (ignore behind walls)", UContainer, true, function(v)
+	wallCheck = v
+	elements:Notify("wall check",
+		v and "visible targets only" or "will lock through walls",
+		v and "ok" or "warn", 2.4)
+end)
+
+elements:Toggle("Drop target when it hides", UContainer, true, function(v)
+	dropOnLoss = v
 end)
 
 elements:Toggle("Draw FOV Circle", UContainer, false, function(v)
 	fovEnabled = v
 	if fovCircle then fovCircle.Visible = v end
-	elements:Notify("fov circle", v and "enabled" or "disabled", "info", 1.8)
 end)
 
-elements:Toggle("Team Check (Disable for FFA)", UContainer, false, function(v)
+elements:Toggle("Team Check (off = FFA)", UContainer, false, function(v)
 	teamCheck = v
-	elements:Notify("team check", v and "enabled" or "disabled (FFA Mode)", "info", 1.8)
 end)
 
 elements:Divider(UContainer)
 elements:Header(UContainer, "aimbot settings")
 
 elements:Textbox("FOV Radius (30 - 500)", UContainer, tostring(fovRadius), function(txt)
-	local num = tonumber(txt)
-	if num and num >= 30 and num <= 500 then
-		fovRadius = num
-		if fovCircle then fovCircle.Radius = num end
-		elements:Notify("fov set", tostring(num), "ok", 1.8)
+	local n = tonumber(txt)
+	if n and n >= 30 and n <= 500 then
+		fovRadius = n
+		if fovCircle then fovCircle.Radius = n end
+		elements:Notify("fov set", tostring(n), "ok", 1.8)
 	else
-		elements:Notify("invalid fov", "enter number 30 - 500", "warn", 2)
+		elements:Notify("invalid fov", "enter 30 - 500", "warn", 2)
 	end
 end)
 
-elements:Textbox("Aim Speed (1.0 = Instant, 0.2 = Smooth)", UContainer, tostring(aimSmooth), function(txt)
-	local num = tonumber(txt)
-	if num and num >= 0.1 and num <= 1.0 then
-		aimSmooth = num
-		elements:Notify("aim speed set", tostring(num), "ok", 1.8)
+elements:Textbox("Aim Speed (1.0 instant, 0.2 smooth)", UContainer, tostring(aimSmooth), function(txt)
+	local n = tonumber(txt)
+	if n and n >= 0.1 and n <= 1.0 then
+		aimSmooth = n
+		elements:Notify("aim speed", tostring(n), "ok", 1.8)
 	else
-		elements:Notify("invalid speed", "enter number 0.1 - 1.0", "warn", 2)
+		elements:Notify("invalid speed", "enter 0.1 - 1.0", "warn", 2)
 	end
 end)
 
 elements:Textbox("Aim Part (Head / HumanoidRootPart)", UContainer, aimPart, function(txt)
 	if txt == "Head" or txt == "HumanoidRootPart" or txt == "Torso" then
 		aimPart = txt
-		elements:Notify("aim part set", txt, "ok", 1.8)
+		elements:Notify("aim part", txt, "ok", 1.8)
 	else
-		elements:Notify("invalid part", "use Head or HumanoidRootPart", "warn", 2)
+		elements:Notify("invalid part", "Head / HumanoidRootPart / Torso", "warn", 2)
 	end
+end)
+
+elements:Divider(UContainer)
+elements:Header(UContainer, "esp / wallhack")
+
+elements:Toggle("ESP", UContainer, false, function(v)
+	espEnabled = v
+	if not v then clearAllEsp() end
+	elements:Notify("esp", v and "enabled" or "disabled", "info", 1.8)
+end)
+
+elements:Toggle("Chams (see through walls)", UContainer, true, function(v)
+	espChams = v
+	if not v then
+		for _, e in pairs(espCache) do if e.hl then e.hl.Enabled = false end end
+	end
+end)
+
+elements:Toggle("Names", UContainer, true, function(v) espName = v end)
+elements:Toggle("Health + distance", UContainer, true, function(v) espHealth = v end)
+
+elements:Toggle("Tracers", UContainer, false, function(v)
+	espTracer = v
+	if not v then
+		for _, e in pairs(espCache) do
+			if e.line then pcall(function() e.line.Visible = false end) end
+		end
+	end
+end)
+
+elements:Toggle("ESP Team Check", UContainer, false, function(v)
+	espTeamCheck = v
+	clearAllEsp()
+end)
+
+elements:Textbox("ESP max distance", UContainer, tostring(espMaxDist), function(txt)
+	local n = tonumber(txt)
+	if not n or n < 50 or n > 10000 then
+		return elements:Notify("invalid", "enter 50 - 10000", "warn", 2)
+	end
+	espMaxDist = n
+	for _, e in pairs(espCache) do
+		if e.tag then e.tag.MaxDistance = n end
+	end
+	elements:Notify("esp range", n .. " studs", "ok", 2)
+end)
+
+-- closing the gui should not leave highlights stuck on people
+ui.Destroying:Connect(function()
+	clearAllEsp()
+	pcall(function() espFolder:Destroy() end)
+	pcall(function() runservice:UnbindFromRenderStep("LoadedHubAimbotLock") end)
+	if fovCircle then pcall(function() fovCircle:Remove() end) end
 end)
 
 --------------------------------------------------------------
@@ -674,10 +1001,10 @@ local function jumpTo(g)
 
 	local armed = armTeleport()
 	if armed then
-		elements:Notify("taking you there", g.game .. " · hub reopens on teleport", "ok")
+		elements:Notify("taking you there", g.game .. " - hub reopens on teleport", "ok")
 	else
 		elements:Notify("taking you there",
-			g.game .. " · autoexec unavailable, run script again", "warn")
+			g.game .. " - autoexec unavailable, run script again", "warn")
 	end
 
 	task.wait(0.35)
@@ -685,7 +1012,6 @@ local function jumpTo(g)
 	local okLaunch = pcall(function()
 		exservice:LaunchExperience({placeId = tonumber(g.id)})
 	end)
-
 	if not okLaunch then
 		pcall(function()
 			game:GetService("TeleportService"):Teleport(tonumber(g.id), plr)
@@ -715,6 +1041,7 @@ end
 -- SETTINGS
 --------------------------------------------------------------
 local dec1 = readCfg()
+
 local function saveKey(sec, key, v)
 	if not hasFS then return end
 	pcall(function()
@@ -794,6 +1121,7 @@ task.spawn(function()
 	if not gc then return end
 	local prompt = gc:FindFirstChild("promptOverlay")
 	if not prompt then return end
+
 	prompt.ChildAdded:Connect(function(child)
 		local cfg = readCfg()
 		if not cfg.settings.auto_rejoin_on_kick then return end
@@ -827,7 +1155,6 @@ end)
 if dec1.settings.disable_3d_rendering then
 	pcall(function() runservice:Set3dRenderingEnabled(false) end)
 end
-
 if getgenv then
 	getgenv().autorjjjj = dec1.settings.auto_rejoin_on_kick
 	getgenv().hubSounds = dec1.settings.sounds
