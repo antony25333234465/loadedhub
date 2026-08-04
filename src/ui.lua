@@ -37,10 +37,11 @@ local RED_BOT    = Color3.fromRGB(175, 15, 25)     -- Close Button Red Bottom
 local F_STUD = Enum.Font.FredokaOne
 local F_SUB  = Enum.Font.FredokaOne
 
-local SMOOTH = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local GLIDE  = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local BOUNCE = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local SNAP   = TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local SMOOTH = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local GLIDE  = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local BOUNCE = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SNAP   = TweenInfo.new(0.09, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local SPRING = TweenInfo.new(0.55, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
 
 --------------------------------------------------------------
 -- HELPER FUNCTIONS
@@ -192,10 +193,10 @@ scToggle.Parent = togglebtn
 task.spawn(function()
 	while togglebtn.Parent do
 		if togglebtn.Visible then
-			tw(scToggle, TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1.035})
-			task.wait(1.4)
-			tw(scToggle, TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1})
-			task.wait(1.4)
+			tw(scToggle, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1.05})
+			task.wait(1.6)
+			tw(scToggle, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Scale = 1})
+			task.wait(1.6)
 		else
 			task.wait(0.5)
 		end
@@ -222,9 +223,9 @@ stroke(MainFrame, 3.5, BLACK_OUT)
 addMainFramePatterns(MainFrame)
 
 local scMain = Instance.new("UIScale")
-scMain.Scale = 0.9
+scMain.Scale = 0.85
 scMain.Parent = MainFrame
-tw(scMain, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
+tw(scMain, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 
 --------------------------------------------------------------
 -- TOPBAR (HEADER WITH RAYS STRICTLY CLAMPED TO HEADER SIZE)
@@ -381,11 +382,16 @@ stroke(hidebtn, 2, BLACK_OUT)
 textStroke(hidebtn, 2, BLACK_OUT)
 glossyGradient(hidebtn, Color3.fromRGB(0, 160, 240), Color3.fromRGB(0, 90, 180), 90)
 
+local scHide = Instance.new("UIScale")
+scHide.Parent = hidebtn
+
 hidebtn.MouseEnter:Connect(function()
 	tw(hidebtn, SMOOTH, {BackgroundColor3 = Color3.fromRGB(0, 180, 255)})
+	tw(scHide, SMOOTH, {Scale = 1.04})
 end)
 hidebtn.MouseLeave:Connect(function()
 	tw(hidebtn, SMOOTH, {BackgroundColor3 = Color3.fromRGB(0, 130, 220)})
+	tw(scHide, SMOOTH, {Scale = 1})
 end)
 
 -- Close Button
@@ -408,11 +414,16 @@ stroke(closebtn, 2.5, BLACK_OUT)
 textStroke(closebtn, 2, BLACK_OUT)
 glossyGradient(closebtn, RED_TOP, RED_BOT, 90)
 
+local scClose = Instance.new("UIScale")
+scClose.Parent = closebtn
+
 closebtn.MouseEnter:Connect(function()
 	tw(closebtn, SMOOTH, {BackgroundColor3 = Color3.fromRGB(255, 90, 100)})
+	tw(scClose, BOUNCE, {Scale = 1.12})
 end)
 closebtn.MouseLeave:Connect(function()
 	tw(closebtn, SMOOTH, {BackgroundColor3 = RED_TOP})
+	tw(scClose, SMOOTH, {Scale = 1})
 end)
 
 --------------------------------------------------------------
@@ -590,16 +601,18 @@ local function newTab(name, label, order)
 
 	b.MouseEnter:Connect(function()
 		if not active then
-			tw(hl, SMOOTH, {BackgroundTransparency = 0.8})
+			tw(hl, SMOOTH, {BackgroundTransparency = 0.78})
 			tw(t, SMOOTH, {TextColor3 = WHITE})
+			tw(b, SMOOTH, {Size = UDim2.new(1, -2, 0, 44)})
 		end
-		tw(icScale, BOUNCE, {Scale = 1.12})
+		tw(icScale, BOUNCE, {Scale = 1.18})
 	end)
 
 	b.MouseLeave:Connect(function()
 		if not active then
 			tw(hl, SMOOTH, {BackgroundTransparency = 1})
 			tw(t, SMOOTH, {TextColor3 = LIGHT_GRAY})
+			tw(b, SMOOTH, {Size = UDim2.new(1, 0, 0, 42)})
 		end
 		tw(icScale, SMOOTH, {Scale = 1})
 	end)
@@ -612,11 +625,18 @@ local function newTab(name, label, order)
 			t.TextColor3 = WHITE
 			tw(hl, GLIDE, {BackgroundTransparency = 0.1})
 			tw(mark, BOUNCE, {Size = UDim2.new(0, 4, 0, 22)})
+			tw(icScale, SPRING, {Scale = 1.25})
+			task.delay(0.35, function()
+				if active then tw(icScale, SMOOTH, {Scale = 1.1}) end
+			end)
+			tw(b, SMOOTH, {Size = UDim2.new(1, -2, 0, 44)})
 		else
 			tabGrad.Color = ColorSequence.new(TAB_INACT_1, TAB_INACT_2)
 			t.TextColor3 = LIGHT_GRAY
 			tw(hl, GLIDE, {BackgroundTransparency = 1})
 			tw(mark, SMOOTH, {Size = UDim2.new(0, 4, 0, 0)})
+			tw(icScale, SMOOTH, {Scale = 1})
+			tw(b, SMOOTH, {Size = UDim2.new(1, 0, 0, 42)})
 		end
 	end)
 
@@ -744,10 +764,12 @@ corner(dot, 999)
 
 task.spawn(function()
 	while dot.Parent do
-		tw(dot, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.6})
-		task.wait(1.15)
-		tw(dot, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0})
-		task.wait(1.15)
+		tw(dot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.65})
+		tw(dot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 11, 0, 11)})
+		task.wait(1.35)
+		tw(dot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0})
+		tw(dot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 8, 0, 8)})
+		task.wait(1.35)
 	end
 end)
 
@@ -869,9 +891,9 @@ do
 		while rail.Parent do
 			if busy then
 				fill.Position = UDim2.new(-0.3, 0, 0, 0)
-				tw(fill, TweenInfo.new(0.95, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+				tw(fill, TweenInfo.new(1.05, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
 					{Position = UDim2.new(1, 0, 0, 0)})
-				task.wait(1)
+				task.wait(1.1)
 			else
 				task.wait(0.25)
 			end
@@ -940,9 +962,14 @@ task.spawn(function()
 	for _, l in ipairs(home:GetChildren()) do
 		if l:IsA("TextLabel") then
 			local keep = l.TextTransparency
+			local keepSc
+			local sc = l:FindFirstChildOfClass("UIScale")
+			if sc then keepSc = sc.Scale end
 			l.TextTransparency = 1
-			task.wait(0.045)
-			tw(l, TweenInfo.new(0.3), {TextTransparency = keep})
+			if sc then sc.Scale = 0.8 end
+			task.wait(0.06)
+			tw(l, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {TextTransparency = keep})
+			if sc then tw(sc, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = keepSc or 1}) end
 		end
 	end
 end)
