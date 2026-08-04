@@ -29,9 +29,12 @@ local TG_OFF  = Color3.fromRGB(45, 45, 60)
 local F  = Enum.Font.FredokaOne
 local F2 = Enum.Font.FredokaOne
 
-local SMOOTH = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local BOUNCE = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local SNAP   = TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+-- tuned easings, longer feels more natural/less synthy
+local SMOOTH = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local BOUNCE = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SNAP   = TweenInfo.new(0.09, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local GLIDE  = TweenInfo.new(0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local SPRING = TweenInfo.new(0.5,  Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
 
 local SND_CLICK = "rbxassetid://6042053626"
 local SND_TOAST = "rbxassetid://4590662766"
@@ -188,16 +191,32 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 	shine.Parent = face
 
 	local pressed = false
+	local glow = Instance.new("Frame")
+	glow.Name = "glow"
+	glow.Size = UDim2.new(1, 12, 1, 12)
+	glow.Position = UDim2.new(0, -6, 0, -6)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 1
+	glow.BorderSizePixel = 0
+	glow.ZIndex = z - 1
+	glow.Parent = h
+	corner(glow, 12)
 
 	face.MouseEnter:Connect(function()
 		if pressed then return end
-		tw(face, SMOOTH, {BackgroundColor3 = lighten(color, 1.15)})
-		tw(sc, SMOOTH, {Scale = 1.02})
+		tw(face, SMOOTH, {BackgroundColor3 = lighten(color, 1.18)})
+		tw(sc, SMOOTH, {Scale = 1.025})
+		tw(glow, SMOOTH, {BackgroundTransparency = 0.55})
+		tw(glow, SMOOTH, {Size = UDim2.new(1, 18, 1, 18)})
+		tw(glow, SMOOTH, {Position = UDim2.new(0, -9, 0, -9)})
 	end)
 
 	face.MouseLeave:Connect(function()
 		tw(face, SMOOTH, {BackgroundColor3 = color})
 		tw(sc, SMOOTH, {Scale = 1})
+		tw(glow, SMOOTH, {BackgroundTransparency = 1})
+		tw(glow, SMOOTH, {Size = UDim2.new(1, 12, 1, 12)})
+		tw(glow, SMOOTH, {Position = UDim2.new(0, -6, 0, -6)})
 		if pressed then
 			pressed = false
 			tw(face, BOUNCE, {Position = UDim2.new(0, 0, 0, 0)})
@@ -211,8 +230,8 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 		pressed = true
 
 		tw(face, SNAP, {Position = UDim2.new(0, 0, 0, SINK)})
-		tw(sc, SNAP, {Scale = 0.97})
-		tw(scT, SNAP, {Scale = 0.94})
+		tw(sc, SNAP, {Scale = 0.96})
+		tw(scT, SNAP, {Scale = 0.93})
 
 		local ax, ay = face.AbsolutePosition.X, face.AbsolutePosition.Y
 		local rp = Instance.new("Frame")
@@ -242,11 +261,11 @@ local function makeButton(parent, size, pos, color, text, txtSize, z, txtCol)
 
 		tw(face, BOUNCE, {Position = UDim2.new(0, 0, 0, 0)})
 		tw(sc, BOUNCE, {Scale = 1})
-		tw(scT, TweenInfo.new(0.4, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Scale = 1})
+		tw(scT, SPRING, {Scale = 1})
 
 		shine.Position = UDim2.new(0, -50, -0.5, 0)
 		shine.BackgroundTransparency = 0.6
-		tw(shine, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		tw(shine, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Position = UDim2.new(1, 40, -0.5, 0),
 			BackgroundTransparency = 1,
 		})
@@ -377,7 +396,7 @@ function stuff:Notify(title, text, kind, dur)
 	table.insert(toasts, t)
 	restack()
 
-	tw(sc, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
+	tw(sc, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
 	tw(dr, TweenInfo.new(dur, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 3)})
 	play(SND_TOAST, 0.35)
 
@@ -388,7 +407,8 @@ function stuff:Notify(title, text, kind, dur)
 		for i, v in ipairs(toasts) do
 			if v == t then table.remove(toasts, i) break end
 		end
-		tw(sc, TweenInfo.new(0.2), {Scale = 0.92})
+		tw(sc, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0.88})
+		tw(t, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1})
 		local leave = tw(t, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 			Position = UDim2.new(1, 330, t.Position.Y.Scale, t.Position.Y.Offset)
 		})
@@ -585,20 +605,30 @@ function stuff:Toggle(str, king, def, cb)
 
 	local isTog = def and true or false
 
+	local ksc = Instance.new("UIScale")
+	ksc.Parent = knob
+
 	local function paint(animated)
-		local t = animated and 0.2 or 0
+		local ti = animated and TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			or TweenInfo.new(0)
+		local kti = animated and TweenInfo.new(0.36, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			or TweenInfo.new(0)
 		if isTog then
-			tw(togbg, TweenInfo.new(t), {BackgroundColor3 = TG_ON})
-			tw(togStroke, TweenInfo.new(t), {Color = PURPLE})
-			tw(knob, TweenInfo.new(t, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Position = UDim2.new(1, -22, 0.5, 0)
-			})
+			tw(togbg, ti, {BackgroundColor3 = TG_ON})
+			tw(togStroke, ti, {Color = PURPLE})
+			tw(knob, kti, {Position = UDim2.new(1, -22, 0.5, 0)})
+			tw(ksc, kti, {Scale = 1.15})
+			task.delay(0.18, function()
+				if isTog then tw(ksc, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1}) end
+			end)
 		else
-			tw(togbg, TweenInfo.new(t), {BackgroundColor3 = TG_OFF})
-			tw(togStroke, TweenInfo.new(t), {Color = EDGE})
-			tw(knob, TweenInfo.new(t, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Position = UDim2.new(0, 2, 0.5, 0)
-			})
+			tw(togbg, ti, {BackgroundColor3 = TG_OFF})
+			tw(togStroke, ti, {Color = EDGE})
+			tw(knob, kti, {Position = UDim2.new(0, 2, 0.5, 0)})
+			tw(ksc, kti, {Scale = 1.15})
+			task.delay(0.18, function()
+				if not isTog then tw(ksc, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1}) end
+			end)
 		end
 	end
 
@@ -693,7 +723,13 @@ function stuff:Textbox(str, king, def, cb)
 	inp.Parent = tbbg
 	textStroke(inp, 1.5, EDGE)
 
+	inp.Focused:Connect(function()
+		tw(tbbg, SMOOTH, {BackgroundColor3 = Color3.fromRGB(14, 14, 22)})
+		tw(newTb, SMOOTH, {BackgroundColor3 = lighten(BOX, 1.1)})
+	end)
 	inp.FocusLost:Connect(function()
+		tw(tbbg, SMOOTH, {BackgroundColor3 = Color3.fromRGB(24, 24, 32)})
+		tw(newTb, SMOOTH, {BackgroundColor3 = BOX})
 		task.spawn(function()
 			local ok, err = pcall(cb, inp.Text)
 			if not ok then warn("[hub] textbox:", err) end
@@ -841,13 +877,17 @@ function stuff:addGame(king, gname, gstate, cb)
 	textStroke(fl, 1.5, EDGE)
 
 	btn.MouseEnter:Connect(function()
-		tw(btn, SMOOTH, {BackgroundColor3 = lighten(BOX, 1.15)})
+		tw(btn, SMOOTH, {BackgroundColor3 = lighten(BOX, 1.18)})
 		tw(fl, SMOOTH, {TextColor3 = LILAC})
+		tw(fl, SMOOTH, {Position = UDim2.new(1, -6, 0.5, 0)})
+		tw(header, SMOOTH, {TextTransparency = 0.15})
 	end)
 
 	btn.MouseLeave:Connect(function()
 		tw(btn, SMOOTH, {BackgroundColor3 = BOX})
 		tw(fl, SMOOTH, {TextColor3 = DIM})
+		tw(fl, SMOOTH, {Position = UDim2.new(1, -10, 0.5, 0)})
+		tw(header, SMOOTH, {TextTransparency = 0})
 	end)
 
 	btn.MouseButton1Down:Connect(function()
