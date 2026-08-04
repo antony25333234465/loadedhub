@@ -276,12 +276,12 @@ for _, sect in pairs(Sections) do
 		if CurSection then
 			CurSection.TabBtn.BackgroundTransparency = 1
 			CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0),
-				Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+				Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.28, true)
 		end
 
 		sect.TabBtn.BackgroundTransparency = 0
 		sect.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0),
-			Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+			Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.28, true)
 		sect.Container.Visible = true
 
 		CurSection = sect
@@ -293,11 +293,11 @@ local function goTo(sect)
 	if CurSection then
 		CurSection.TabBtn.BackgroundTransparency = 1
 		CurSection.Container:TweenPosition(UDim2.new(0.5, 0, 1, 0),
-			Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+			Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.28, true)
 	end
 	sect.TabBtn.BackgroundTransparency = 0
 	sect.Container:TweenPosition(UDim2.new(0.5, 0, 0, 0),
-		Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+		Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.28, true)
 	sect.Container.Visible = true
 	CurSection = sect
 end
